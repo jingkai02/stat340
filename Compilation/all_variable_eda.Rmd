@@ -28,9 +28,9 @@ For this project, we will be focusing on `Dalc`, or workday alcohol consumption.
 
 ## Part 2: Independent Variables
 
-There are 31 variables that are present in the dataset
+There are 31 variables that are present in the dataset, along with whether we think they are significant based on the EDA conducted.
 
-1) `school`
+1) `school` - probably significant
 2) `sex`
 3) `age` 
 4) `address` 
@@ -73,12 +73,13 @@ This variable describes the student's school (binary: 'GP' - Gabriel Pereira or 
 students %>% 
   group_by(school) %>% 
   summarize(count=n())
-data1 <- data %>% 
+data1 <- students %>% 
   group_by(Dalc, school) %>% 
   summarize(count=n(), .groups="drop") %>% 
   mutate(total=case_when(school=="GP"~349, 
                          school=="MS"~46)) %>% 
   mutate(p=count/total)
+
 data1 %>% 
   ggplot() +
   geom_bar(aes(Dalc, p, fill=school), position="dodge", stat="identity") +
@@ -86,15 +87,16 @@ data1 %>%
   ylab("Proportion") +
   xlab("Weekday Consumption Level")
 
-data %>% 
+students %>% 
   group_by(school) %>% 
   summarize(count=n())
-data1 <- data %>% 
+data1 <- students %>% 
   group_by(Walc, school) %>% 
   summarize(count=n(), .groups="drop") %>% 
   mutate(total=case_when(school=="GP"~349, 
                          school=="MS"~46)) %>% 
   mutate(p=count/total)
+
 data1 %>% 
   ggplot() +
   geom_bar(aes(Walc, p, fill=school), position="dodge", stat="identity") +
@@ -103,13 +105,17 @@ data1 %>%
   xlab("Weekend Consumption Level")
 ```
 
-2) sex - student's sex (binary: 'F' - female or 'M' - male)
+If we look at the barplot above, we observe that for both the weekday and weekend consumption levels, it looks like students in the MS high school have a higher consumption level on average than GP high school.
+
+2) sex 
+
+This variable describes the student's sex (binary: 'F' - female or 'M' - male)
 
 ```{r}
-data %>% 
+students %>% 
   group_by(sex) %>% 
   summarize(count=n())
-data2 <- data %>% 
+data2 <- students %>% 
   group_by(sex, Dalc) %>% 
   summarize(count=n(), .groups="drop") %>% 
   mutate(total=case_when(sex=="F"~208, 
@@ -122,10 +128,10 @@ data2 %>%
   ylab("Proportion") +
   xlab("Weekday Consumption Level")
 
-data %>% 
+students %>% 
   group_by(sex) %>% 
   summarize(count=n())
-data2 <- data %>% 
+data2 <- students %>% 
   group_by(sex, Walc) %>% 
   summarize(count=n(), .groups="drop") %>% 
   mutate(total=case_when(sex=="F"~208, 
@@ -139,10 +145,12 @@ data2 %>%
   xlab("Weekend Consumption Level")
 ```
 
+From these plots, it appears that males are more likely to drink alcohol overall 
+
 3) age - student's age (numeric: from 15 to 22)
 
 ```{r}
-data %>% 
+students %>% 
   group_by(age) %>% 
   summarize(count=n())
 data2 <- data %>% 
@@ -252,6 +260,84 @@ data2 %>%
 12) guardian - student's guardian (nominal: 'mother', 'father' or 'other')
 13) traveltime - home to school travel time (numeric: 1 - <15 min., 2 - 15 to 30 min., 3 - 30 min. to 1 hour, or 4 - >1 hour)
 14) studytime - weekly study time (numeric: 1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
+
+## Reason
+```{r}
+reg = lm(Dalc~reason, data=df)
+summary(reg)
+```
+
+```{r}
+ggplot(data=df, mapping=aes(x=reason, y=Dalc)) +
+  geom_boxplot()
+
+ggplot(data=df, mapping=aes(x=reason, y=Walc)) +
+  geom_boxplot()
+```
+It appears that for weekday alcohol consumption, students who chose their school due to its 'reputation' tend to have a lower weekday alcohol consumption. We hypothesize that this may be the case as these are the subset of students who we expect to take school more seriously which may in turn result in lower weekday alcohol consumption levels.
+
+Students who chose 'other' as their reason for going to their school have a noticably higher weekend alcohol consumption on average. 
+
+```{r}
+table(df$reason, df$Dalc)
+```
+
+working on this
+```{r}
+r = df %>% group_by(reason, Dalc) %>% 
+  summarize(count=n())
+
+ggplot(data=r, mapping=aes(x=Dalc, y=count)) + geom_line(aes(group=reason))
+```
+
+
+## Guardian
+
+```{r}
+ggplot(data=df, mapping=aes(x=guardian, y=Dalc)) +
+  geom_boxplot()
+
+ggplot(data=df, mapping=aes(x=guardian, y=Walc)) +
+  geom_boxplot()
+```
+The three options for guardian all depict similar alcohol consumptions for both weekdays and weekends. This is likely not going to be a key indicator of a student's alcohol consumption. 
+
+## TravelTime
+
+THIS IS A VERY BAD AND USELESS PLOT
+
+The plot fails since almost every combination of (x, y) -> (traveltime, dalc) exists, but the plot does not depict the frequency of these combinations.
+
+```{r}
+ggplot(aes(x=traveltime, y=Dalc), data=df) + geom_point() + geom_smooth(method='lm', se=FALSE, color='red')
+```
+
+
+```{r}
+reg = lm(Dalc ~ traveltime, data=df)
+summary(reg)
+```
+
+There is a positive correlation between travel time and weekday alcohol consumption, with a significant regression pvalue. 
+
+```{r}
+reg = lm(Walc ~ traveltime, data=df)
+summary(reg)
+```
+
+Similarly, there is a positive correlation between travel time and weekend alcohol consumption, with a significant regression pvalue. 
+
+## G1 G2 G3
+```{r}
+reg = lm(Dalc ~ G2, data=df)
+summary(reg)
+```
+
+G1, G2, and G3 are all correlated to one another as expected. However, none of them have a significant p value in a regression model to predict the weekday and weekend alcohol consumptions.
+
+SUMMARY:
+
+The two categorical variables, reason and guardian, don't seem to have too much promise and relevance in regards to predicting a student's alcohol consumption. However, while it is difficult to visualize travel time against alcohol consumption as both variables are non-continuous, it is definitely worthwhile to include in a regression model. 
 
 ```{r}
 #1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
