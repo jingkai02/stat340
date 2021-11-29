@@ -6,7 +6,7 @@ library(ggplot2)
 
 Loading in the data and selecting the key variables
 ```{r}
-df = read_csv("student-mat.csv")
+df = read_csv("../data/student-mat.csv")
 df = df %>% select(c('reason', 'guardian','traveltime', 'Dalc', 'Walc', 'G1', 'G2', 'G3'))
 head(df)
 ```
