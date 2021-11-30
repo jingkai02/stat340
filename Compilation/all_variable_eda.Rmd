@@ -42,10 +42,10 @@ There are 31 variables that are present in the dataset
 4) `address`- The area that the student’s home is located (“U”: Urban or “R”: Rural) 
 5) `famsize`- The size of the student’s family (“LE3”: Less than or equal to 3 or “GT3”: Greater than or equal to 3)
 6) `Pstatus`- The status of whether the parents live together or are separated. ('A': Alone, 'T': Together)
-7) `Medu`   - The student's Mother’s education level, with 0 being non-educated, and 4 being in higher/tertiary education.
-8) `Fedu` 
-9) `Mjob` 
-10) `Fjob`
+7) `Medu`   - The student's mother’s education level, with 0 being non-educated, and 4 being in higher/tertiary education.
+8) `Fedu`   - The student's fother’s education level, with 0 being non-educated, and 4 being in higher/tertiary education.
+9) `Mjob`   - The student's mother's current employment position and status in the workforce (categorical variable)
+10) `Fjob`  - The student's father's current employment position and status in the workforce (categorical variable)
 11) `reason`
 12) `guardian`
 13) `traveltime`
@@ -212,8 +212,7 @@ It seems that most students in the dataset have a family size less than or equal
 From these plots, it appears that students who have a smaller family size are more likely to drink more alcohol than students who have a larger family size. Hence, famsize looks to be a significant factor as well.
 
 
-
-6) Pstatus - parent's cohabitation status (binary: 'T' - living together or 'A' - apart)
+### 6) Pstatus - parent's cohabitation status (binary: 'T' - living together or 'A' - apart)
 
 `Pstatus` is a binary variable that reflects the status of whether the parents live together or are separated. The status of parenthood can emotionally affect these student’s lives, which might influence how much alcohol they consume as a coping mechanism to their emotional trauma. (T' - living together or 'A' - apart)
 
@@ -244,51 +243,141 @@ It seems that most students in the dataset have parents who live together.
 
 From this, we can see that for the most extreme levels of weekend alcohol consumption levels (from a low 1 to high 4-5), students whose parents stay apart have a higher alcohol consumption level than students whose parents live together.
 
-7) Medu - mother's education (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
+### 7) Medu - mother's education (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
 
 `Medu` is an ordinal-valued variable reflecting the student's mother's educational level, set at arbitrary levels which are mostly closely related to the levels of the mother’s education, with 0 being non-educated, and 4 being in higher/tertiary education. The mother’s education level might influence the way the student is brought up at home, which in turn might influence how much alcohol the student chooses to consume. (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
 
-For weekday consumption levels, all mother's education seem to project low alcohol consumption levels but with a few outliers. For weekend consumption levels, the highest frequencies belong to the lowest Mother's education.
-
 ```{r}
 
-p1 <- ggplot(main_cols, mapping=aes(x=Dalc)) +
-  geom_bar(aes(fill=as.factor(Medu)),position="dodge") + 
-  ggtitle("Count of Students\nby Mother's Education") + 
-  xlab("Weekday Consumption Level") + ylab("Count") +
+students %>% 
+  group_by(Medu) %>% 
+  summarize(count=n())
+
+Medu_eda <- students %>% 
+  group_by(Medu, Walc) %>%
+  mutate(Medu = as.character(Medu)) %>%
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Medu==0~3, 
+                         Medu==1~59,
+                         Medu==2~103,
+                         Medu==3~99, 
+                         Medu==4~131)) %>% 
+  mutate(prop=count/total)
+
+ggplot(Medu_eda, aes(x=Walc, y=prop, fill=Medu)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Mother's Education") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
   scale_fill_discrete(name="Mother's Education")
 
-p2 <- ggplot(main_cols, mapping=aes(x=Walc)) +
-  geom_bar(aes(fill=as.factor(Medu)),position="dodge") + 
-  ggtitle("Count of Students\nby Mother's Education") + 
-  xlab("Weekend Consumption Level") + ylab("Count") +
-  scale_fill_discrete(name="Mother's Education")
-
-grid.arrange(p1, p2, ncol = 2)
 
 ```
 
-Generally, the lowest counts of consumption levels for both weekdays and weekends belong to Mother's with the highest education level.
+It seems that most students have mothers with high education levels.
 
-8) Fedu - father's education (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
-9) Mjob - mother's job (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
-10) Fjob - father's job (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
+From the plot above, it seems like all the categories have a pretty similiar alcohol consumption level, so it is not immediately clear if Mother's Education might be a significant variable. 
 
 
+### 8) Fedu - father's education (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
 
-11) reason - reason to choose this school (nominal: close to 'home', school 'reputation', 'course' preference or 'other')
-12) guardian - student's guardian (nominal: 'mother', 'father' or 'other')
-13) traveltime - home to school travel time (numeric: 1 - <15 min., 2 - 15 to 30 min., 3 - 30 min. to 1 hour, or 4 - >1 hour)
-14) studytime - weekly study time (numeric: 1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
+`Fedu` reflects the student's father’s education level. This is an ordinal-valued variable, set at arbitrary levels which are mostly closely related to the levels of the father’s education, with 0 being non-educated, and 4 being in higher/tertiary education. The father’s education level might influence the way the student is brought up at home, which in turn might influence how much alcohol the student chooses to consume. (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
 
-## Reason
+
 ```{r}
-reg = lm(Dalc~reason, data=df)
+students %>% 
+  group_by(Fedu) %>% 
+  summarize(count=n())
+
+Fedu_eda <- students %>% 
+  group_by(Fedu, Walc) %>%
+  mutate(Fedu = as.character(Fedu)) %>%
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Fedu==0~2, 
+                         Fedu==1~82,
+                         Fedu==2~115,
+                         Fedu==3~100, 
+                         Fedu==4~96)) %>% 
+  mutate(prop=count/total)
+
+ggplot(Fedu_eda, aes(x=Walc, y=prop, fill=Fedu)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Father's Education") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Father's Education")
+
+```
+
+It seems that most students have fathers with high education levels.
+
+From the plot above, it seems like all the categories have a pretty similiar alcohol consumption level, so it is not immediately clear if Father's Education might be a significant variable. 
+
+### 9) Mjob - mother's job (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
+
+The mother’s current employment position and status in the workforce. This is a nominal-valued variable, set as “teacher”, “health”, “services”, “at_home”, and “other”. While there are infinitely many jobs in the job market, these jobs are categorized as such, in order to simplify analysis in observing if the mother’s job has any influence in the student’s alcohol consumption. (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
+
+```{r}
+students %>% 
+  group_by(Mjob) %>% 
+  summarize(count=n())
+
+Mjob_EDA2 <- students %>% 
+  group_by(Mjob, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Mjob=="at_home"~59, 
+                         Mjob=="health"~34,
+                         Mjob=="other"~141,
+                         Mjob=="services"~103, 
+                         Mjob=="teacher"~58)) %>% 
+  mutate(prop=count/total)
+
+
+ggplot(Mjob_EDA2, aes(x=Walc, y=prop, fill=Mjob)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Mother's Job") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Mother's Job")
+
+```
+
+It seems most of the mothers either work in civil services or "other" jobs.
+
+Additionally, there seems to be higher weekend alcohol consumption levels for students whose Mother's job are at home. It is unclear if this variable is significant from just the plot alone.
+
+### 10) Fjob - father's job (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
+
+The father’s current employment position and status in the workforce. This is a nominal-valued variable, set as “teacher”, “health”, “services”, “at_home”, and “other”. While there are infinitely many jobs in the job market, these jobs are categorized as such, in order to simplify analysis in observing if the father’s job has any influence in the student’s alcohol consumption. (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other').
+
+
+```{r}
+
+students %>% 
+  group_by(Fjob) %>% 
+  summarize(count=n())
+
+Fjob_EDA2 <- students %>% 
+  group_by(Fjob, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Fjob=="at_home"~20, 
+                         Fjob=="health"~18,
+                         Fjob=="other"~217,
+                         Fjob=="services"~111, 
+                         Fjob=="teacher"~29)) %>% 
+  mutate(prop=count/total)
+
+ggplot(Fjob_EDA2, aes(x=Walc, y=prop, fill=Fjob)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Father's Job") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Father's Job")
+
+```
+
+It seems most of the fathers either work in civil services or "other" jobs, similiar to the mothers.
+
+Additionally, there seems to be higher weekend alcohol consumption levels for students whose father's job are at home. It is unclear if this variable is significant from just the plot alone.
+
+
+### 11) reason - reason to choose this school (nominal: close to 'home', school 'reputation', 'course' preference or 'other')
+
+```{r}
+reg = lm(Dalc~reason, data=students)
 summary(reg)
 ```
 
 ```{r}
-ggplot(data=df, mapping=aes(x=reason, y=Dalc)) +
+ggplot(data=students, mapping=aes(x=reason, y=Dalc)) +
   geom_boxplot()
 
 ggplot(data=df, mapping=aes(x=reason, y=Walc)) +
@@ -310,8 +399,7 @@ r = df %>% group_by(reason, Dalc) %>%
 ggplot(data=r, mapping=aes(x=Dalc, y=count)) + geom_line(aes(group=reason))
 ```
 
-
-## Guardian
+### 12) guardian - student's guardian (nominal: 'mother', 'father' or 'other')
 
 ```{r}
 ggplot(data=df, mapping=aes(x=guardian, y=Dalc)) +
@@ -322,7 +410,7 @@ ggplot(data=df, mapping=aes(x=guardian, y=Walc)) +
 ```
 The three options for guardian all depict similar alcohol consumptions for both weekdays and weekends. This is likely not going to be a key indicator of a student's alcohol consumption. 
 
-## TravelTime
+### 13) traveltime - home to school travel time (numeric: 1 - <15 min., 2 - 15 to 30 min., 3 - 30 min. to 1 hour, or 4 - >1 hour)
 
 THIS IS A VERY BAD AND USELESS PLOT
 
@@ -358,6 +446,8 @@ G1, G2, and G3 are all correlated to one another as expected. However, none of t
 SUMMARY:
 
 The two categorical variables, reason and guardian, don't seem to have too much promise and relevance in regards to predicting a student's alcohol consumption. However, while it is difficult to visualize travel time against alcohol consumption as both variables are non-continuous, it is definitely worthwhile to include in a regression model. 
+
+### 14) studytime - weekly study time (numeric: 1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
 
 ```{r}
 #1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
@@ -649,7 +739,5 @@ table(math$absences)
 
 We first try to run a regression model based on all the variables.
 
-```{r}
-summary(lm(Dalc~., data=students))
-```
+
 
