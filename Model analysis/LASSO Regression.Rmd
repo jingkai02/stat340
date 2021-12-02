@@ -1,0 +1,19 @@
+---
+title: "LASSO Regression"
+date: "12/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(glmnet)
+```
+
+```{r}
+
+```
+
