@@ -1,0 +1,89 @@
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+```
+
+Loading in the data and selecting the key variables
+```{r}
+df = read_csv("../data/student-mat.csv")
+df = df %>% select(c('reason', 'guardian','traveltime', 'Dalc', 'Walc', 'G1', 'G2', 'G3'))
+head(df)
+```
+## Reason
+```{r}
+reg = lm(Dalc~reason, data=df)
+summary(reg)
+```
+
+```{r}
+ggplot(data=df, mapping=aes(x=reason, y=Dalc)) +
+  geom_boxplot()
+
+ggplot(data=df, mapping=aes(x=reason, y=Walc)) +
+  geom_boxplot()
+```
+It appears that for weekday alcohol consumption, students who chose their school due to its 'reputation' tend to have a lower weekday alcohol consumption. We hypothesize that this may be the case as these are the subset of students who we expect to take school more seriously which may in turn result in lower weekday alcohol consumption levels.
+
+Students who chose 'other' as their reason for going to their school have a noticably higher weekend alcohol consumption on average. 
+
+```{r}
+table(df$reason, df$Dalc)
+```
+
+working on this
+```{r}
+r = df %>% group_by(reason, Dalc) %>% 
+  summarize(count=n())
+
+ggplot(data=r, mapping=aes(x=Dalc, y=count)) + geom_line(aes(group=reason))
+```
+
+
+## Guardian
+
+```{r}
+ggplot(data=df, mapping=aes(x=guardian, y=Dalc)) +
+  geom_boxplot()
+
+ggplot(data=df, mapping=aes(x=guardian, y=Walc)) +
+  geom_boxplot()
+```
+The three options for guardian all depict similar alcohol consumptions for both weekdays and weekends. This is likely not going to be a key indicator of a student's alcohol consumption. 
+
+## TravelTime
+
+THIS IS A VERY BAD AND USELESS PLOT
+
+The plot fails since almost every combination of (x, y) -> (traveltime, dalc) exists, but the plot does not depict the frequency of these combinations.
+
+```{r}
+ggplot(aes(x=traveltime, y=Dalc), data=df) + geom_point() + geom_smooth(method='lm', se=FALSE, color='red')
+```
+
+
+```{r}
+reg = lm(Dalc ~ traveltime, data=df)
+summary(reg)
+```
+
+There is a positive correlation between travel time and weekday alcohol consumption, with a significant regression pvalue. 
+
+```{r}
+reg = lm(Walc ~ traveltime, data=df)
+summary(reg)
+```
+
+Similarly, there is a positive correlation between travel time and weekend alcohol consumption, with a significant regression pvalue. 
+
+## G1 G2 G3
+```{r}
+reg = lm(Dalc ~ G2, data=df)
+summary(reg)
+```
+
+G1, G2, and G3 are all correlated to one another as expected. However, none of them have a significant p value in a regression model to predict the weekday and weekend alcohol consumptions.
+
+SUMMARY:
+
+The two categorical variables, reason and guardian, don't seem to have too much promise and relevance in regards to predicting a student's alcohol consumption. However, while it is difficult to visualize travel time against alcohol consumption as both variables are non-continuous, it is definitely worthwhile to include in a regression model. 

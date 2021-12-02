@@ -1,11 +1,966 @@
 ---
 title: "EDA for Variables"
-date: "11/11/2021"
-output: html_document
+output: 
+  html_document:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(psych)
+library("gridExtra") 
 ```
 
-This document will compile everyone's progress
+We first import the dataset
+
+```{r, echo=T,warning=F, show_col_types = F}
+students <- read_csv("../data/student-mat.csv")
+head(students)
+```
+
+We then proceed to conduct Exploratory Data Analysis on each variable, to try to determine which variables look interesting
+
+Here are the list of variables that are present in the data:
+
+# Part 1: Dependent Variable
+
+For this project, we will be focusing on `Walc`, or weekend alcohol consumption.
+We will treat `Walc` as a categorical variable, as it takes on values of 1-5. We aim to predict the category each student will fall in.
+
+
+# Part 2: Independent Variables
+
+There are 31 variables that are present in the dataset, that we will classify into 4 different groups:
+
+(Note: We think variables with a ** will be significant, based on our analysis below)
+
+__Group A: Personal Variables__
+
+* **`sex`      - The sex of the student (categorical “'F”: Female or “M”: Male)
+* **`age`      - The age of the students (Continuous, from 15 to 22)
+* **`address`  - The area that the student’s home is located (categorical “U”: Urban or “R”: Rural) 
+* `internet`   - Internet access at home (binary: yes or no)
+* `romantic`   - The student is in a romantic relationship (binary: yes or no)
+* **`health`   - Student current health status (categorical: from 1 - very bad to 5 - very good)
+
+__Group B: Academic Variables__
+
+* **`studytime`- The student's weekly study time (categorical: 1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
+* **`failures` - Number of past class failures (categorical: n if 1<=n<3, else 4)
+* `schoolsup`  - School extra educational support (binary: yes or no)
+* **`paid`     - Student receives extra paid classes within the course subject (Math) (binary: yes or no)
+* **`nursery`  - The student attended nursery school (binary: yes or no)
+* **`higher`   - The student wants to take higher education (binary: yes or no
+* **`G1`       - The student's First period grade (continuous: from 0 to 20)
+* **`G2`       - The student's Second period grade (continuous: from 0 to 20)
+* **`G3`       - The student's Final grade (continuous: from 0 to 20)
+
+__Group C: Family Variables__
+
+* **`famsize` - The size of the student’s family (categorical “LE3”: Less than or equal to 3 or “GT3”: Greater than or equal to 3)
+* **`Pstatus` - The status of whether the parents live together or are separated. (categorical 'A': Alone, 'T': Together)
+* `Medu`    - The student's mother’s education level, with 0 being non-educated, and 4 being in higher/tertiary education. (categorical)
+* `Fedu`    - The student's fother’s education level, with 0 being non-educated, and 4 being in higher/tertiary education. (categorical)
+* `Mjob`    - The student's mother's current employment position and status in the workforce (categorical variable)
+* `Fjob`    - The student's father's current employment position and status in the workforce (categorical variable)
+* `guardian`- The student's guardian (categorical: 'mother', 'father' or 'other')
+* `famsup`  - Family educational support (binary: yes or no)
+* **`famrel`  - The quality of the student's family relationships (categorical: from 1 - very bad to 5 - excellent)
+
+__Group D: Other School Variables__
+
+* **`school`    - The school that the student belongs to (categorical “GP”: Gabriel Pereira or “MS”: Mousinho da Silveira)
+* **`reason`    - reason to choose this school (categorical: close to 'home', school 'reputation', 'course' preference or 'other')
+* `traveltime`- The student's home to school travel time (categorical: 1 - <15 min., 2 - 15 to 30 min., 3 - 30 min. to 1 hour, or 4 - >1 hour)
+* `activities`- The student is doing extra-curricular activities (binary: yes or no)
+* **`freetime`  - The student's amount of free time after school (categorical: from 1 - very low to 5 - very high)
+* **`goout`     - How often does the student go out with friends (categorical: from 1 - very low to 5 - very high)
+* **`absences`  - The Number of school absences (continuous: from 0 to 75)
+
+
+We will now proceed to walk through these variables one by one and examine whether they are significant in predicting alcohol level
+
+## __Group A: Personal Variables__
+
+### Sex
+
+This variable describes the student's sex (binary: 'F' - female or 'M' - male)
+
+```{r}
+students %>% 
+  group_by(sex) %>% 
+  summarize(count=n())
+
+data2 <- students %>% 
+  group_by(sex, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(sex=="F"~208, 
+                         sex=="M"~187)) %>% 
+  mutate(p=count/total)
+
+data2 %>% 
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=sex), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level by Sex") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+```
+
+It seems that there are slightly more female students than male students in the dataset.
+
+From these plots, it appears that males are more likely to drink more alcohol than female students. Hence, sex looks to be a significant factor in predicting weekend alcohol consumption level.
+
+
+### Age
+
+This variable describes the student's age. It is a numeric variable ranging from 15 to 22 years old.
+
+```{r}
+students %>% 
+  group_by(age) %>% 
+  summarize(count=n())
+
+ggplot(data=students,aes(x=as.character(Walc))) +
+  geom_boxplot(aes(y=age)) +
+  ggtitle("Boxplot of Students in Each Weekend Consumption Level\nby Student Age") + 
+  ylab("Student Age") +
+  xlab("Weekend Consumption Level")
+```
+
+From the table output, we see that most of the students in the dataset are 15-18 years old. Additionally, it looks like the younger students have a really low alcohol consumption rate compared to the older students, so age could be a significant variable.
+
+
+### Address
+
+This variable describes the student's home address type (binary: 'U' - urban or 'R' - rural)
+
+```{r}
+students %>% 
+  group_by(address) %>% 
+  summarize(count=n())
+
+data2 <- students %>% 
+  group_by(address, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(address=="R"~88, 
+                         address=="U"~307)) %>% 
+  mutate(p=count/total)
+
+data2 %>% 
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=address), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level by Location") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+```
+
+It seems that most students in the dataset live in urban areas.
+
+From these plots, it appears that students living in rural areas are more likely to drink more alcohol than students in urban areas. Hence, address looks to be a significant factor as well.
+
+
+### Internet
+
+This is a binary variable that describes whether the student has Internet access at home (binary: yes or no)
+
+```{r}
+students %>% 
+  group_by(internet) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(internet, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(internet=="no"~66, 
+                         internet=="yes"~329)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=internet), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Internet Access at Home") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students have internet access at home.
+
+Additionally, it does not seem like internet access is correlated with weekend alcohol consumption level, so this variable may not be significant.
+
+
+### Romantic Relationship
+
+This is a binary variable that describes whether the student is in a romantic relationship (binary: yes or no)
+
+```{r}
+students %>% 
+  group_by(romantic) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(romantic, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(romantic=="no"~263, 
+                         romantic=="yes"~132)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=romantic), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Romantic Relationship status") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students are not in a romantic relationship.
+
+Additionally, it does not seem like being in a romantic relationship is correlated with weekend alcohol consumption level, so this variable may not be significant.
+
+
+### Current Health Status
+
+This is a qualitative variable that assesses the student’s current health status (Numeric: from 1 - very bad to 5 - very good)
+
+```{r}
+# 1 is bad health, 5 is good health
+
+students %>% 
+  group_by(health) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(health, Walc) %>% 
+  mutate(health=as.character(health)) %>%
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(health==1~47, 
+                         health==2~45,
+                         health==3~91,
+                         health==4~66,
+                         health==5~146,)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=health), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Student Health Status") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students in the school have a great health status.
+
+Additionally, it seems like students who have a worse health status have a lower weekend alcohol consumption than students who have better health status, so this variable could be significant.
+
+## __Group B: Academic Variables__
+
+### Study Time
+
+This is a qualitative variable that counts the number of hours the student studies in a week. The number of hours is divided into 4 categories (1 - 2 hours, 2 - 5 hours, 5 - 10 hours or more than 10 hours).
+
+```{r}
+#1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
+
+students %>% 
+  group_by(studytime) %>% 
+  summarize(count=n())
+
+studytime_EDA <- students %>% 
+  group_by(studytime, Walc) %>% 
+  mutate(studytime = as.character(studytime)) %>%
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(studytime==1~105, 
+                         studytime==2~198,
+                         studytime==3~65,
+                         studytime==4~27)) %>% 
+  mutate(prop=count/total)
+
+ggplot(studytime_EDA, aes(x=Walc, y=prop, fill=studytime)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Study Time") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Study Time")
+```
+
+It seems most of the students study less than 5 hours a week outside of class, as they fall mostly in 1 and 2.
+
+Additionally, it does appear that students who study more outside of class have a lower proportion of high alcohol consumption on weekends, except for the students who study the most. Therefore, this variable does appear significant.
+
+
+### Past Class Failures
+
+This is a variable that represents the number of past class failures (from 1 to 4)
+
+```{r}
+#numeric: n if 1<=n<3, else 4)
+
+students %>% 
+  group_by(failures) %>% 
+  summarize(count=n())
+
+failures_EDA <- students %>% 
+  group_by(failures, Walc) %>% 
+  mutate(failures = as.character(failures)) %>%
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(failures==0~312, 
+                         failures==1~50,
+                         failures==2~17,
+                         failures==3~16)) %>% 
+  mutate(prop=count/total)
+
+ggplot(failures_EDA, aes(x=Walc, y=prop, fill=failures)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Previous Failures") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Previous Failures")
+```
+
+It seems like most of the students have not previously failed the class.
+
+Additionally, it seems like as the number of previous failure increases, the weekend alcohol consumption also increases, so this variable could be significant.
+
+
+### Extra Educational Support
+
+This is a qualitative variable that represents whether or not a student is receiving extra educational support (this is binary: “yes” if they are receiving extra educational support, “no” if they are not). Extra education support, here, is a very general term for academic help outside of school which includes, but is not limited to, after school tutoring with teachers and online tutoring. 
+
+```{r}
+students %>% 
+  group_by(schoolsup) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(schoolsup, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(schoolsup=="no"~344, 
+                         schoolsup=="yes"~51)) %>% 
+  mutate(p=count/total) %>% 
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=schoolsup), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level by School Support") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+```
+
+It seems like most students in the school do not receive school support.
+
+Additionally, it seems like students who receive school support have a slightly lower weekend alcohol consumption level, so this variable may be significant.
+
+
+### Extra Paid Classes
+
+This is a qualitative variable that represents whether the student is taking extra paid classes within the course subject of Math (this is binary: “yes” if they are receiving educational support through their family, “no” if they are not).
+
+```{r}
+students %>% 
+  group_by(paid) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(paid, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(paid=="no"~214, 
+                         paid=="yes"~181)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=paid), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Taking Paid Classes") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students in the school are not taking paid classes in math.
+
+Additionally, it seems like students taking paid classes in math have a higher weekend alcohol consumption than students who don't, so this variable could be significant.
+
+
+### Attended Nursery School
+
+This is a qualitative variable that represents whether the student attended nursery school (this is binary: “yes” if they did, “no” if they did not). By definition, a nursery school is, “ a school for children usually under five years old.” (https://www.merriam-webster.com/dictionary/nursery%20school)
+
+```{r}
+students %>% 
+  group_by(nursery) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(nursery, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(nursery=="no"~81, 
+                         nursery=="yes"~314)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=nursery), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Nursery School Attendance") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students in the school went to nursery school.
+
+Additionally, it seems like students who went to nursery school have a lower weekend alcohol consumption than students who don't, so this variable could be significant.
+
+
+### Wants to take Higher Education
+
+This is a binary variable that describes whether a student wants to take higher education (binary: yes or no)
+
+This variable could be significant, because we could predict that students who intend to pursue higher education are less likely to drink
+
+```{r}
+students %>% 
+  group_by(higher) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(higher, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(higher=="no"~20, 
+                         higher=="yes"~375)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=higher), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Intent to pursue Higher Education") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+```
+
+It seems like most students in the school want to pursue higher education.
+
+Additionally, it seems like students who want to pursue higher education have a lower weekend alcohol consumption than students who don't, so this variable could be significant.
+
+
+### First Period Grade
+
+This is a quantitative variable that shows a student’s grade for their first period ranging from 0 to 20. This is similar to, for example, the first midterm score of a university student.
+
+```{r, warnings = F}
+describe(students$G1)
+hist(students$G1, xlab="Grade for 1st Period", main="Histogram of Student Grade for 1st Period")
+
+ggplot(data=students,aes(x=as.character(Walc))) +
+  geom_boxplot(aes(y=G1)) +
+  ggtitle("Boxplot of Students in Each Weekend Consumption Level\nby Student Grade for 1st Period") + 
+  ylab("Student Grade for 1st Period") +
+  xlab("Weekend Consumption Level")
+```
+
+From the histogram, the student's First period grades look pretty normally distributed.
+
+From the boxplots above, we see that a higher weekend alcohol consumption level is related to lower median student grades for First period, indicating that this could be a significant variable.
+
+
+
+### Second Period Grade
+
+This is a quantitative variable that shows a student’s grade for their second period ranging from 0 to 20. This is similar to, for example, the second midterm score of a university student.
+
+```{r, warnings = F}
+describe(students$G2)
+hist(students$G2, xlab="Grade for 2nd Period", main="Histogram of Student Grade for 2nd Period")
+
+ggplot(data=students,aes(x=as.character(Walc))) +
+  geom_boxplot(aes(y=G2)) +
+  ggtitle("Boxplot of Students in Each Weekend Consumption Level\nby Student Grade for 2nd Period") + 
+  ylab("Student Grade for 2nd Period") +
+  xlab("Weekend Consumption Level")
+```
+
+From the histogram, the student's second period grades look pretty normally distributed.
+
+From the boxplots above, we see that a higher weekend alcohol consumption level is related to lower median student grades for second period, indicating that this could be a significant variable.
+
+
+### Final Period Grade
+
+This is a quantitative variable that shows a student’s grade for their final period ranging from 0 to 20. This is similar to, for example, the final exam score of a university student.
+
+```{r, warnings = F}
+describe(students$G3)
+hist(students$G3, xlab="Grade for Final Period", main="Histogram of Student Grade for Final Period")
+
+ggplot(data=students,aes(x=as.character(Walc))) +
+  geom_boxplot(aes(y=G3)) +
+  ggtitle("Boxplot of Students in Each Weekend Consumption Level\nby Student Grade for Final Period") + 
+  ylab("Student Grade for Final Period") +
+  xlab("Weekend Consumption Level")
+```
+
+From the histogram, the student's final period grades look pretty normally distributed.
+
+From the boxplots above, we see that a higher weekend alcohol consumption level is related to lower median student grades for final period, indicating that this could be a significant variable, but not as much as G1 and G2.
+
+
+## __Group C: Family Variables__
+
+
+### Family Size 
+
+This variable describes the student family size (binary: 'LE3' - less or equal to 3 or 'GT3' - greater than 3)
+
+```{r}
+students %>% 
+  group_by(famsize) %>% 
+  summarize(count=n())
+
+data2 <- students %>% 
+  group_by(famsize, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(famsize=="GT3"~281, 
+                         famsize=="LE3"~114)) %>% 
+  mutate(p=count/total)
+
+data2 %>% 
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=famsize), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level by Family Size") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+```
+
+It seems that most students in the dataset have a family size less than or equal to 3.
+
+From these plots, it appears that students who have a smaller family size are more likely to drink more alcohol than students who have a larger family size. Hence, famsize looks to be a significant factor as well.
+
+
+### Parent's cohabitation status
+
+`Pstatus` is a binary variable that reflects the status of whether the parents live together or are separated. The status of parenthood can emotionally affect these student’s lives, which might influence how much alcohol they consume as a coping mechanism to their emotional trauma. (T' - living together or 'A' - apart)
+
+
+```{r}
+
+students %>% 
+  group_by(Pstatus) %>% 
+  summarize(count=n())
+
+Pstatus_EDA2 <- students %>% 
+  group_by(Pstatus, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Pstatus=="A"~41, 
+                         Pstatus=="T"~354)) %>% 
+  mutate(prop=count/total)
+
+ggplot(Pstatus_EDA2, aes(x=Walc, y=prop, fill=Pstatus)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Parent Status") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Parent Status",
+                         breaks=c("A", "T"),
+                         labels=c("Apart", "Together"))
+
+
+```
+
+It seems that most students in the dataset have parents who live together.
+
+From this, we can see that for the most extreme levels of weekend alcohol consumption levels (from a low 1 to high 4-5), students whose parents stay apart have a higher alcohol consumption level than students whose parents live together. This variable does appear significant.
+
+
+### Mother's Education
+
+`Medu` is an ordinal-valued variable reflecting the student's mother's educational level, set at arbitrary levels which are mostly closely related to the levels of the mother’s education, with 0 being non-educated, and 4 being in higher/tertiary education. The mother’s education level might influence the way the student is brought up at home, which in turn might influence how much alcohol the student chooses to consume. (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
+
+```{r}
+
+students %>% 
+  group_by(Medu) %>% 
+  summarize(count=n())
+
+Medu_eda <- students %>% 
+  group_by(Medu, Walc) %>%
+  mutate(Medu = as.character(Medu)) %>%
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Medu==0~3, 
+                         Medu==1~59,
+                         Medu==2~103,
+                         Medu==3~99, 
+                         Medu==4~131)) %>% 
+  mutate(prop=count/total)
+
+ggplot(Medu_eda, aes(x=Walc, y=prop, fill=Medu)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Mother's Education") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Mother's Education")
+
+
+```
+
+It seems that most students have mothers with high education levels.
+
+From the plot above, it seems like all the categories have a pretty similiar alcohol consumption level, so it is not immediately clear if Mother's Education might be a significant variable. 
+
+
+### Father's Education 
+
+`Fedu` reflects the student's father’s education level. This is an ordinal-valued variable, set at arbitrary levels which are mostly closely related to the levels of the father’s education, with 0 being non-educated, and 4 being in higher/tertiary education. The father’s education level might influence the way the student is brought up at home, which in turn might influence how much alcohol the student chooses to consume. (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
+
+
+```{r}
+students %>% 
+  group_by(Fedu) %>% 
+  summarize(count=n())
+
+Fedu_eda <- students %>% 
+  group_by(Fedu, Walc) %>%
+  mutate(Fedu = as.character(Fedu)) %>%
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Fedu==0~2, 
+                         Fedu==1~82,
+                         Fedu==2~115,
+                         Fedu==3~100, 
+                         Fedu==4~96)) %>% 
+  mutate(prop=count/total)
+
+ggplot(Fedu_eda, aes(x=Walc, y=prop, fill=Fedu)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Father's Education") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Father's Education")
+
+```
+
+It seems that most students have fathers with high education levels.
+
+From the plot above, it seems like all the categories have a pretty similiar alcohol consumption level, so it is not immediately clear if Father's Education might be a significant variable. 
+
+### Mother’s Current Job
+
+The mother’s current employment position and status in the workforce. This is a nominal-valued variable, set as “teacher”, “health”, “services”, “at_home”, and “other”. While there are infinitely many jobs in the job market, these jobs are categorized as such, in order to simplify analysis in observing if the mother’s job has any influence in the student’s alcohol consumption. (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
+
+```{r}
+students %>% 
+  group_by(Mjob) %>% 
+  summarize(count=n())
+
+Mjob_EDA2 <- students %>% 
+  group_by(Mjob, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Mjob=="at_home"~59, 
+                         Mjob=="health"~34,
+                         Mjob=="other"~141,
+                         Mjob=="services"~103, 
+                         Mjob=="teacher"~58)) %>% 
+  mutate(prop=count/total)
+
+
+ggplot(Mjob_EDA2, aes(x=Walc, y=prop, fill=Mjob)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Mother's Job") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Mother's Job")
+
+```
+
+It seems most of the mothers either work in civil services or "other" jobs.
+
+Additionally, there seems to be higher weekend alcohol consumption levels for students whose Mother's job are at home. It is unclear if this variable is significant from just the plot alone.
+
+
+### Father's Current Job
+
+The father’s current employment position and status in the workforce. This is a nominal-valued variable, set as “teacher”, “health”, “services”, “at_home”, and “other”. While there are infinitely many jobs in the job market, these jobs are categorized as such, in order to simplify analysis in observing if the father’s job has any influence in the student’s alcohol consumption. (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other').
+
+
+```{r}
+
+students %>% 
+  group_by(Fjob) %>% 
+  summarize(count=n())
+
+Fjob_EDA2 <- students %>% 
+  group_by(Fjob, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(Fjob=="at_home"~20, 
+                         Fjob=="health"~18,
+                         Fjob=="other"~217,
+                         Fjob=="services"~111, 
+                         Fjob=="teacher"~29)) %>% 
+  mutate(prop=count/total)
+
+ggplot(Fjob_EDA2, aes(x=Walc, y=prop, fill=Fjob)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Father's Job") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Father's Job")
+
+```
+
+It seems most of the fathers either work in civil services or "other" jobs, similiar to the mothers.
+
+Additionally, there seems to be higher weekend alcohol consumption levels for students whose father's job are at home. It is unclear if this variable is significant from just the plot alone.
+
+
+### Student's Guardian
+
+This is a qualitative variable that represents the student’s guardian. The three possible options for this variable are “mother”, “father” or “other”. In the case where the student lives with a single mother or father, then “mother” or “father” would be chosen respectively. In the case where the student lives with both parents, while the data is ambiguous regarding this, it is likely that one of the parents is chosen to be the guardian. Finally, ‘other’ is chosen if neither the student’s mother or father is their primary guardian.
+
+```{r}
+students %>% 
+  group_by(guardian) %>% 
+  summarize(count=n())
+
+guardian_EDA <- students %>% 
+  group_by(guardian, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(guardian=="father"~90, 
+                         guardian=="mother"~273,
+                         guardian=="other"~32)) %>% 
+  mutate(prop=count/total)
+
+ggplot(guardian_EDA, aes(x=Walc, y=prop, fill=guardian)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Student Guardian") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Student Guardian")
+```
+
+It seems most of the students have a mother as their guardian.
+
+There does not seem to be any significant difference the groups in terms of alchohol consumption, so this variable may not be useful.
+
+
+### Educational Support Through Family
+
+This is a qualitative variable that most likely represents whether or not a student is receiving educational support through their family (this is binary: “yes” if they are receiving educational support through their family, “no” if they are not)
+
+```{r}
+students %>% 
+  group_by(famsup) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(famsup, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(famsup=="no"~153, 
+                         famsup=="yes"~242)) %>% 
+  mutate(p=count/total) %>% 
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=famsup), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level by Family Support") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students in the school have good family support.
+
+Additionally, it does not seem like family support is correlated with weekend alcohol consumption level, so this variable may not be significant.
+
+
+### Quality of Family Relationships
+
+This is a qualitative variable that describes the quality of family relationships (numeric: from 1 - very bad to 5 - excellent)
+
+```{r}
+students %>% 
+  group_by(famrel) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(famrel, Walc) %>% 
+  mutate(famrel=as.character(famrel)) %>%
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(famrel==1~8, 
+                         famrel==2~18,
+                         famrel==3~68,
+                         famrel==4~195,
+                         famrel==5~106,)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=famrel), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Quality of Family Relationships") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students in the school have good family relationships.
+
+Additionally, it seems like students who have better family relationships have a lower weekend alcohol consumption than students who don't, so this variable could be significant.
+
+
+## __Group D: Other School Variables__
+
+
+### School
+
+This variable describes the student's school (binary: 'GP' - Gabriel Pereira or 'MS' - Mousinho da Silveira)
+
+```{r}
+students %>% 
+  group_by(school) %>% 
+  summarize(count=n())
+
+data1 <- students %>% 
+  group_by(Walc, school) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(school=="GP"~349, 
+                         school=="MS"~46)) %>% 
+  mutate(p=count/total)
+
+data1 %>% 
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=school), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level by School") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+```
+
+It seems that there are more students studying at Gabriel Pereira (GP) secondary school than Mousinho da Silveira (MS) secondary school. 
+
+If we look at the barplot above, we observe that for the weekend consumption levels, it looks like students in the MS secondary school have a higher consumption level on average than GP high school. Hence, school looks to be a significant factor.
+
+
+### Reason to choose this school
+
+A qualitative variable that depicts the reason a student goes to their school. There are 4 options for this variable: “home” , “reputation”, “course”, and “other”. “Home” suggests that a student chose their school because it is close to their home. “Reputation” suggests that a student chose their school because of the school’s reputation. “Course” suggests that a student chose their school because due to their course preferences. Finally, “other” is chosen if the main reason a student goes to their school is not one of the three options above.
+
+```{r}
+students %>% 
+  group_by(reason) %>% 
+  summarize(count=n())
+
+reason_EDA <- students %>% 
+  group_by(reason, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(reason=="course"~146, 
+                         reason=="home"~109,
+                         reason=="other"~36,
+                         reason=="reputation"~105)) %>% 
+  mutate(prop=count/total)
+
+ggplot(reason_EDA, aes(x=Walc, y=prop, fill=reason)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Reason to choose school") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Reason to choose school")
+```
+
+It seems most of the students chose the school because of the course, but home and reputation follow closely behind.
+
+Additionally, there seems to be higher weekend alcohol consumption levels for students who chose 'other' as their reason for going to their school, whereas students who chose the school for reputation have the lowest weekend alcohol consumption rates. Therefore, this variable could be significant.
+
+
+
+### Travel Time to School
+
+This is a quantitative variable that represents the amount of time required for a student to travel from their living space to school. However, the quantitative values does not represent a unit of time, but rather a group of time ranges. A value of 1 maps to a time range of less than 15 minutes, 2 maps to 15-30 minutes, 3 maps to 30-60 minutes, and 4 maps to greater than one hour. 
+
+```{r}
+students %>% 
+  group_by(traveltime) %>% 
+  summarize(count=n())
+
+traveltime_EDA <- students %>% 
+  group_by(traveltime, Walc) %>% 
+  mutate(traveltime = as.character(traveltime)) %>%
+  summarize(count=n(), .groups="drop") %>%
+  mutate(total=case_when(traveltime==1~257, 
+                         traveltime==2~107,
+                         traveltime==3~23,
+                         traveltime==4~8)) %>% 
+  mutate(prop=count/total)
+
+ggplot(traveltime_EDA, aes(x=Walc, y=prop, fill=traveltime)) + geom_col(position="dodge") + ggtitle("Proportion of Students\nby Travel Time to School") + 
+  xlab("Weekend Consumption Level") + ylab("Proportion") +
+  scale_fill_discrete(name="Travel Time to School")
+```
+
+It seems most of the students live near to the school and have low travel time.
+
+There does not seem to be any significant difference the groups in terms of alchohol consumption, so this variable may not be useful. The only meaningful observation are the students who have the longest travel time - a high pottion of those students consume a lot of alcohol on weekdays, but as there's only 8 students in this category, this may not be meaningful.
+
+
+### Extracurricular Activities 
+
+This is a qualitative variable that represents whether the student is involved in  extracurricular activities (this is binary: “yes” if they are, “no” if they are not)
+
+```{r}
+students %>% 
+  group_by(activities) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(activities, Walc) %>% 
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(activities=="no"~194, 
+                         activities=="yes"~201)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=activities), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Extracurriculars participation") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like half of the students participate in extracurricular activities and half don't.
+
+Additionally, it does not seem like extracurricular activity participation is correlated with weekend alcohol consumption level, so this variable may not be significant.
+
+
+### Free Time After School
+
+This is a qualitative variable that describes the amount of free time the student has after school (numeric: from 1 - very low to 5 - very high)
+
+
+```{r}
+students %>% 
+  group_by(freetime) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(freetime, Walc) %>% 
+  mutate(freetime=as.character(freetime)) %>%
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(freetime==1~19, 
+                         freetime==2~64,
+                         freetime==3~157,
+                         freetime==4~115,
+                         freetime==5~40,)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=freetime), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Free Time after School") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students in the school have a lot of free time after school.
+
+Additionally, it seems like students who have less free time after school have a lower weekend alcohol consumption than students who have more free time, so this variable could be significant.
+
+
+### Go Out with Friends
+
+A qualitative variable that describes how frequent the student goes out with friends (Numeric: from 1 - very low to 5 - very high)
+
+```{r}
+students %>% 
+  group_by(goout) %>% 
+  summarize(count=n())
+
+students %>% 
+  group_by(goout, Walc) %>% 
+  mutate(goout=as.character(goout)) %>%
+  summarize(count=n(), .groups="drop") %>% 
+  mutate(total=case_when(goout==1~23, 
+                         goout==2~103,
+                         goout==3~130,
+                         goout==4~86,
+                         goout==5~53,)) %>% 
+  mutate(p=count/total) %>%
+  ggplot() +
+  geom_bar(aes(Walc, p, fill=goout), position="dodge", stat="identity") +
+  ggtitle("Proportion of Students in Each Weekend Consumption Level\nby Frequency Going Out with Friends") + 
+  ylab("Proportion") +
+  xlab("Weekend Consumption Level")
+
+```
+
+It seems like most students in the school go out with friends for a moderate amount of time.
+
+Additionally, it seems like students who go out with friends less have a lower weekend alcohol consumption than students who go out with friends more, so this variable could be significant.
+
+
+### School Absences 
+
+This is a continuous variable of the number of school absences the student has (Numeric: from 0 to 75)
+
+```{r}
+describe(students$absences)
+hist(students$absences, xlab="Student Absences", main="Histogram of Student Absences")
+
+ggplot(data=students,aes(x=as.character(Walc))) +
+  geom_boxplot(aes(y=absences)) +
+  ggtitle("Boxplot of Students in Each Weekend Consumption Level\nby Absences from school") + 
+  ylab("Absences") +
+  xlab("Weekend Consumption Level")
+```
+
+From the boxplots above, we see that a higher weekend alcohol consumption level is related to a higher median absence value for the students, indicating that this could be a significant variable.
+
