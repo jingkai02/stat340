@@ -19,6 +19,92 @@ students <- read_csv("../data/student-mat.csv")
 head(students)
 ```
 
+We will also recode the variables in the dataset. 
+
+We produce two versions of the file: One where Walc is kept with 5 factors, and one where it's transformed to a binomial variable called `Walc_bin`
+
+```{r}
+students_recode <- students %>%
+  
+  ## Recode alcohol variables
+  mutate(Walc = case_when(Walc == 1 ~ "very low",
+                            Walc == 2 ~ "low",
+                            Walc == 3 ~ "moderate",
+                            Walc == 4 ~ "high",
+                            Walc == 5 ~ "very high")) %>%
+  mutate(Dalc = case_when(Dalc == 1 ~ "very low",
+                            Dalc == 2 ~ "low",
+                            Dalc == 3 ~ "moderate",
+                            Dalc == 4 ~ "high",
+                            Dalc == 5 ~ "very high")) %>%
+  
+  ## Group A: Personal Variables
+  mutate(address = case_when(address == "U" ~ "Urban",
+                             address == "R" ~ "Rural")) %>%
+  mutate(health = case_when(health == 1 ~ "very bad",
+                            health == 2 ~ "bad",
+                            health == 3 ~ "moderate",
+                            health == 4 ~ "good",
+                            health == 5 ~ "very good")) %>%
+  
+  ## Group B: Academic records
+  mutate(studytime = case_when(studytime == 1 ~ "<2 hrs",
+                            studytime == 2 ~ "2-5 hrs",
+                            studytime == 3 ~ "5-10 hrs",
+                            studytime == 4 ~ ">10 hrs")) %>%
+  
+  ## Group C: Family Variables
+  mutate(Pstatus = case_when(Pstatus == "A" ~ "alone",
+                             Pstatus == "T" ~ "together")) %>%
+  mutate(Medu = case_when(Medu == 0 ~ "none",
+                          Medu == 1 ~ "4th grade",
+                          Medu == 2 ~ "5th - 9th grade",
+                          Medu == 3 ~ "secondary education",
+                          Medu == 4 ~ "higher education"
+                          )) %>%
+  mutate(Fedu = case_when(Fedu == 0 ~ "none",
+                          Fedu == 1 ~ "4th grade",
+                          Fedu == 2 ~ "5th - 9th grade",
+                          Fedu == 3 ~ "secondary education",
+                          Fedu == 4 ~ "higher education"
+                          )) %>%  
+  mutate(famrel = case_when(famrel == 1 ~ "very bad",
+                            famrel == 2 ~ "bad",
+                            famrel == 3 ~ "moderate",
+                            famrel == 4 ~ "good",
+                            famrel == 5 ~ "excellent")) %>%
+  
+  ## Group D: Other School Variables
+  
+  mutate(traveltime = case_when(traveltime == 1 ~ "<15 min",
+                                traveltime == 2 ~ "15-30 min",
+                                traveltime == 3 ~ "30 min - 1 hr",
+                                traveltime == 4 ~ ">1 hr")) %>%
+  mutate(freetime = case_when(freetime == 1 ~ "very low",
+                            freetime == 2 ~ "low",
+                            freetime == 3 ~ "moderate",
+                            freetime == 4 ~ "high",
+                            freetime == 5 ~ "very high")) %>%
+  mutate(goout = case_when(goout == 1 ~ "very low",
+                            goout == 2 ~ "low",
+                            goout == 3 ~ "moderate",
+                            goout == 4 ~ "high",
+                            goout == 5 ~ "very high"))
+
+students_recode_binary <- students_recode %>%
+  mutate(Walc_bin = case_when(Walc == "very low" ~ "no",
+                              Walc %in% c("low", "moderate", "high", "very high") ~ "yes")) %>%
+  select(-Walc)
+  
+```
+
+We now export these to csv files
+
+```{r}
+write_csv(students_recode, "../data/student-mat-recoded.csv")
+write_csv(students_recode_binary, "../data/student-mat-recoded-binary.csv")
+```
+
 We then proceed to conduct Exploratory Data Analysis on each variable, to try to determine which variables look interesting
 
 Here are the list of variables that are present in the data:
