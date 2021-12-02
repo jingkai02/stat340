@@ -1,0 +1,114 @@
+---
+title: "Ordinal Logistic Regression"
+output: html_document
+---
+## Authors: Jeremy and Pete
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(foreign)
+library(MASS)
+library(Hmisc)
+library(reshape2)
+library(tidyverse)
+library(dplyr)
+```
+
+
+### Step 1: Reading in the data
+```{r}
+df = read_csv("student-mat-recoded-binary.txt")
+dat = read_csv("student-mat.csv")
+
+# convert our dependent variable from double to ordinal factor with 5 levels 
+# also convert all non-continuous variables to categorical variables
+
+
+df = df %>% mutate(Walc = as.ordered(dat$Walc)) %>% 
+  mutate(
+    sex=as.factor(sex), 
+    school=as.factor(school), 
+    address=as.factor(address),
+    famsize=as.factor(famsize),
+    Pstatus = as.factor(Pstatus),
+    Medu=as.factor(Medu),
+    Fedu = as.factor(Fedu),
+    Mjob = as.factor(Mjob),
+    Fjob = as.factor(Fjob),
+    reason = as.factor(reason),
+    guardian = as.factor(guardian),
+    traveltime = as.factor(traveltime),
+    studytime = as.factor(studytime),
+    schoolsup = as.factor(schoolsup),
+    famsup = as.factor(famsup),
+    paid = as.factor(paid),
+    activities = as.factor(activities),
+    nursery = as.factor(nursery),
+    higher = as.factor(higher),
+    internet = as.factor(internet),
+    romantic = as.factor(romantic),
+    famrel = as.factor(famrel),
+    freetime = as.factor(freetime),
+    Dalc = as.factor(Dalc),
+    goout = as.factor(goout),
+    health = as.factor(health),
+    Walc_bin = as.factor(Walc_bin)
+    ) 
+
+
+
+
+head(df)
+```
+```{r}
+summary(df)
+```
+### Step 2: Create the Ordinal Logistic Regression Model
+```{r}
+model = polr(Walc ~ .-Walc_bin, data = df, Hess=TRUE)
+summary(model)
+```
+
+### Step 3: Obtaining P-Values
+```{r}
+ctable = coef(summary(model))
+p = pnorm(abs(ctable[, "t value"]), lower.tail=FALSE) * 2
+(ctable = cbind(ctable, "p value" = p))
+```
+
+### Step 4: Eliminate all statistically insignificant variables from the model and 
+### arrive at the final model
+
+* Significance level at alpha=0.10
+
+* For categorical predictors, if any of the subcategories (e.g Fjobother) is significant, then we will keep the independent variable regardless of the significance of the other subcategories within the IV
+
+* Dalc is significant, but it would seem unfair to have weekday alcohol consumption as a predictor for weekend alcohol consumption. If we have access to a student's weekday alcohol consumption, then it would be reasonable to also have access to a student's weekend alcohol consumption, making the model redundant. Therefore, it is not included in the model as a predictor.
+
+
+#### Final Model
+```{r}
+model = polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
+               schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df, Hess=TRUE)
+ctable = coef(summary(model))
+p = pnorm(abs(ctable[, "t value"]), lower.tail=FALSE) * 2
+(ctable = cbind(ctable, "p value" = p))
+```
+
+### Step 5: Evaluate the Model by calculating the error
+
+```{r}
+pred = predict(model, df)
+pred
+```
+
+```{r}
+
+(tab = table(pred, df$Walc))
+1-sum(diag(tab)) / sum(tab)
+```
+
+Using the entire dataset as the training set, and evaluating the model on this the entire dataset, the model only predicted 45% of the weekend alcohol consumption correctly. This is pretty bad.
+
+
+
