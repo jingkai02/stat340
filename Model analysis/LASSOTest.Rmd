@@ -1,0 +1,203 @@
+---
+title: "Project Progress"
+author: "Nabhan Kamarudzman"
+date: "12/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library("gridExtra") 
+library(nnet)
+library(glmnet)
+```
+
+## Data
+
+```{r cars}
+alcohol <- read.csv("student-mat-recoded.csv")
+head(alcohol)
+```
+
+## LASSO
+
+run 4 lasso regressions separated on 4 types of variables: Personal, Main Academic, Family, and School Variables
+
+## LASSO on Personal
+
+```{r}
+
+#Transform data into matrix
+
+x1 <- model.matrix( Walc ~ 1 + sex + age + address + internet + romantic + health, alcohol)[,-1]
+
+y1 <- as.matrix(alcohol["Walc"])
+
+grid=10^seq(10,-2, length =100)
+lasso.mod <- glmnet(x1,y1,alpha = 1, lambda = grid, family="multinomial")
+plot(lasso.mod)
+
+```
+
+```{r}
+set.seed(123)
+
+#Split data into train, test dataset
+
+train <- sample(1:nrow(x1),nrow(x1)/2)
+test <- (-train)
+
+# Run Cross-Validatiom
+
+cv.out <- cv.glmnet(x1,y1,alpha = 1, family="multinomial")
+plot(cv.out)
+
+best_lambda <- cv.out$lambda.min
+best_lambda
+
+lasso.coef <- predict (lasso.mod ,type = "coefficients",s= best_lambda)
+lasso.coef
+```
+
+
+## LASSO on Academic
+
+```{r}
+
+x1 <- model.matrix( Walc ~ 1 + studytime + failures + schoolsup + paid + nursery + higher + G1 + G2 + G3, alcohol)[,-1]
+
+y1 <- as.matrix(alcohol["Walc"])
+
+grid=10^seq(10,-2, length =100)
+lasso.mod <- glmnet(x1,y1,alpha = 1, lambda = grid, family="multinomial")
+plot(lasso.mod)
+```
+
+```{r}
+set.seed(123)
+
+#Split data into train, test dataset
+
+train <- sample(1:nrow(x1),nrow(x1)/2)
+test <- (-train)
+
+# Run Cross-Validatiom
+
+cv.out <- cv.glmnet(x1,y1,alpha = 1, family="multinomial")
+plot(cv.out)
+
+best_lambda <- cv.out$lambda.min
+best_lambda
+
+lasso.coef <- predict (lasso.mod ,type = "coefficients",s= best_lambda)
+lasso.coef
+```
+
+## LASSO on Family
+
+```{r}
+
+x1 <- model.matrix( Walc ~ 1 + famsize + Pstatus + Medu + Fedu + Mjob + Fjob + guardian + famsup + famrel, alcohol)[,-1]
+
+y1 <- as.matrix(alcohol["Walc"])
+
+grid=10^seq(10,-2, length =100)
+lasso.mod <- glmnet(x1,y1,alpha = 1, lambda = grid, family="multinomial")
+plot(lasso.mod)
+```
+
+
+```{r}
+set.seed(123)
+
+#Split data into train, test dataset
+
+train <- sample(1:nrow(x1),nrow(x1)/2)
+test <- (-train)
+
+# Run Cross-Validatiom
+
+cv.out <- cv.glmnet(x1,y1,alpha = 1, family="multinomial")
+plot(cv.out)
+
+best_lambda <- cv.out$lambda.min
+best_lambda
+
+lasso.coef <- predict (lasso.mod ,type = "coefficients",s= best_lambda)
+lasso.coef
+```
+
+## LASSO on School
+
+```{r}
+
+x1 <- model.matrix( Walc ~ 1 + school + reason + traveltime + activities + freetime + goout + absences, alcohol)[,-1]
+
+y1 <- as.matrix(alcohol["Walc"])
+
+grid=10^seq(10,-2, length =100)
+lasso.mod <- glmnet(x1,y1,alpha = 1, lambda = grid, family="multinomial")
+plot(lasso.mod)
+```
+
+
+```{r}
+set.seed(123)
+
+#Split data into train, test dataset
+
+train <- sample(1:nrow(x1),nrow(x1)/2)
+test <- (-train)
+
+# Run Cross-Validatiom
+
+cv.out <- cv.glmnet(x1,y1,alpha = 1, family="multinomial")
+plot(cv.out)
+
+best_lambda <- cv.out$lambda.min
+best_lambda
+
+lasso.coef <- predict (lasso.mod ,type = "coefficients",s= best_lambda)
+lasso.coef
+```
+
+## LASSO on Everything
+
+```{r}
+
+x1 <- model.matrix( Walc ~ 1 + sex + age + address + internet + romantic + health + studytime + failures + schoolsup + paid + nursery + higher + G1 + G2 + G3 + famsize + Pstatus + Medu + Fedu + Mjob + Fjob + guardian + famsup + famrel + school + reason + traveltime + activities + freetime + goout + absences, alcohol)[,-1]
+
+y1 <- as.matrix(alcohol["Walc"])
+
+grid=10^seq(10,-2, length =100)
+lasso.mod <- glmnet(x1,y1,alpha = 1, lambda = grid, family="multinomial")
+plot(lasso.mod)
+
+```
+
+```{r}
+set.seed(123)
+
+#Split data into train, test dataset
+
+train <- sample(1:nrow(x1),nrow(x1)/2)
+test <- (-train)
+
+# Run Cross-Validatiom
+
+cv.out <- cv.glmnet(x1,y1,alpha = 1, family="multinomial")
+plot(cv.out)
+
+best_lambda <- cv.out$lambda.min
+best_lambda
+
+lasso.coef <- predict (lasso.mod ,type = "coefficients",s= best_lambda)
+lasso.coef
+```
+
+
+
+
