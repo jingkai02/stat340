@@ -167,21 +167,13 @@ p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
 
 ```{r}
 
-# do not know what 1|2, 2|3, 3|4, 4|5 are
+# 1|2, 2|3, 3|4, 4|5 are the intercepts
 
 ```
 
 ```{r}
 
-# does not work
-
-# ci <- confint(m)
-
-```
-
-```{r}
-
-# do not know how to eliminate variables
+# eliminate variables
 
 # model = polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
 #                schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary, Hess=TRUE)
