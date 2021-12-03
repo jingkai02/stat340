@@ -666,185 +666,41 @@ df_recoded_binary_shuffled &lt;- df_recoded_binary[sample(nrow(df_recoded_binary
 df_recoded_binary_80 &lt;- df_recoded_binary_shuffled %&gt;% slice(1:(nrow(df_recoded_binary)*0.8))
 
 # extract the remaining 20% of the total rows from the shuffled data sete
-df_recoded_binary_20 &lt;- df_recoded_binary_shuffled %&gt;% slice((nrow(df_recoded_binary)*0.8)+1:(nrow(df_recoded_binary)*0.2))
-
-# we fit a model with every predictor besides `Walc_bin` because `Walc_bin` is the binary representation of `Walc`, our response variable
-model_80 = polr(Walc ~ . - Walc_bin, data = df_recoded_binary_80, Hess = TRUE)
-
-# let us examine the summary statistics of the fitted model
-summary(model_80)</code></pre>
-<pre><code>## Call:
-## polr(formula = Walc ~ . - Walc_bin, data = df_recoded_binary_80, 
-##     Hess = TRUE)
-## 
-## Coefficients:
-##                              Value Std. Error    t value
-## schoolMS                 -0.719528  4.953e-01 -1.453e+00
-## sexM                      0.807518  3.159e-01  2.556e+00
-## age                       0.203497  1.414e-01  1.439e+00
-## addressUrban             -0.572402  3.736e-01 -1.532e+00
-## famsizeLE3                0.088744  2.867e-01  3.096e-01
-## Pstatustogether          -0.131720  4.986e-01 -2.642e-01
-## Medu5th - 9th grade      -0.582924  4.755e-01 -1.226e+00
-## Meduhigher education     -1.233003  6.581e-01 -1.874e+00
-## Medunone                  0.260313  1.215e+00  2.142e-01
-## Medusecondary education  -0.561776  5.225e-01 -1.075e+00
-## Fedu5th - 9th grade       0.540369  4.081e-01  1.324e+00
-## Feduhigher education      0.766342  5.266e-01  1.455e+00
-## Fedunone                -15.430955  4.454e-08 -3.465e+08
-## Fedusecondary education   1.126086  4.622e-01  2.437e+00
-## Mjobhealth                0.384346  6.387e-01  6.018e-01
-## Mjobother                -0.723364  4.439e-01 -1.630e+00
-## Mjobservices             -0.263502  4.764e-01 -5.531e-01
-## Mjobteacher              -0.315800  6.439e-01 -4.905e-01
-## Fjobhealth                0.332783  9.640e-01  3.452e-01
-## Fjobother                 1.101293  6.598e-01  1.669e+00
-## Fjobservices              1.242342  6.784e-01  1.831e+00
-## Fjobteacher               0.300240  8.807e-01  3.409e-01
-## reasonhome               -0.567361  3.496e-01 -1.623e+00
-## reasonother              -0.172701  5.123e-01 -3.371e-01
-## reasonreputation          0.280417  3.461e-01  8.101e-01
-## guardianmother            0.002968  3.391e-01  8.753e-03
-## guardianother            -0.746176  5.963e-01 -1.251e+00
-## traveltime&gt;1 hr           5.536046  1.357e+00  4.078e+00
-## traveltime15-30 min      -0.334326  3.155e-01 -1.060e+00
-## traveltime30 min - 1 hr  -0.061741  5.828e-01 -1.059e-01
-## studytime&gt;10 hrs         -1.894812  7.441e-01 -2.546e+00
-## studytime2-5 hrs         -0.292664  3.221e-01 -9.086e-01
-## studytime5-10 hrs        -0.778134  4.659e-01 -1.670e+00
-## failures                 -0.003889  2.254e-01 -1.725e-02
-## schoolsupyes             -0.217572  4.701e-01 -4.629e-01
-## famsupyes                -0.440603  2.879e-01 -1.531e+00
-## paidyes                   0.658733  3.094e-01  2.129e+00
-## activitiesyes            -0.136750  2.692e-01 -5.081e-01
-## nurseryyes               -0.740346  3.266e-01 -2.267e+00
-## higheryes                 0.776816  6.692e-01  1.161e+00
-## internetyes               0.411574  4.005e-01  1.028e+00
-## romanticyes              -0.156095  2.913e-01 -5.358e-01
-## famrelexcellent           0.343590  7.080e-01  4.853e-01
-## famrelgood                0.427985  6.884e-01  6.217e-01
-## famrelmoderate            1.235067  7.298e-01  1.692e+00
-## famrelvery bad            1.447794  1.104e+00  1.311e+00
-## freetimelow               0.501832  3.920e-01  1.280e+00
-## freetimemoderate          0.111711  3.376e-01  3.309e-01
-## freetimevery high         0.035692  5.656e-01  6.311e-02
-## freetimevery low          0.328980  6.952e-01  4.732e-01
-## gooutlow                 -2.110736  4.198e-01 -5.027e+00
-## gooutmoderate            -0.763045  3.684e-01 -2.071e+00
-## gooutvery high            0.505542  4.777e-01  1.058e+00
-## gooutvery low            -1.592592  6.360e-01 -2.504e+00
-## Dalclow                  -1.253009  9.225e-01 -1.358e+00
-## Dalcmoderate             -0.563828  1.022e+00 -5.517e-01
-## Dalcvery high            15.286785  4.743e-05  3.223e+05
-## Dalcvery low             -3.674574  9.368e-01 -3.922e+00
-## healthgood               -0.904637  5.042e-01 -1.794e+00
-## healthmoderate           -0.611816  4.493e-01 -1.362e+00
-## healthvery bad           -0.769387  5.425e-01 -1.418e+00
-## healthvery good           0.178431  4.130e-01  4.321e-01
-## absences                  0.030548  1.681e-02  1.818e+00
-## G1                       -0.068940  9.069e-02 -7.602e-01
-## G2                        0.087210  1.047e-01  8.330e-01
-## G3                        0.005682  6.927e-02  8.203e-02
-## 
-## Intercepts:
-##     Value         Std. Error    t value      
-## 1|2 -3.830000e-01  3.154400e+00 -1.214000e-01
-## 2|3  1.376100e+00  3.160600e+00  4.354000e-01
-## 3|4  3.371400e+00  3.154500e+00  1.068800e+00
-## 4|5  6.080300e+00  3.164700e+00  1.921300e+00
-## 
-## Residual Deviance: 604.9314 
-## AIC: 744.9314</code></pre>
-<pre class="r"><code>ctable = coef(summary(model_80))
+df_recoded_binary_20 &lt;- df_recoded_binary_shuffled %&gt;% slice((nrow(df_recoded_binary)*0.8)+1:(nrow(df_recoded_binary)*0.2))</code></pre>
+<p>From the model that we fit above using all of the predictors, we have already found the predictors that are significant in predicting <code>Walc</code>. Thus, we simply have to fit a model using these predictors and then examine the model’s prediction accuracy on the remaining 20% of the shuffled data set.</p>
+<pre class="r"><code># we fit a model with every predictor besides `Walc_bin` and the predictors that were found to be insignificant in the previous model fitted with all of the predictors
+model_80 &lt;- polr(Walc ~ . -Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
+               schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary_80, Hess=TRUE)
+ctable = coef(summary(model))
 p = pnorm(abs(ctable[, &quot;t value&quot;]), lower.tail = FALSE) * 2
-(ctable = cbind(ctable, &quot;p value&quot; = p))</code></pre>
-<pre><code>##                                 Value   Std. Error       t value      p value
-## schoolMS                 -0.719527737 4.952712e-01 -1.452795e+00 1.462806e-01
-## sexM                      0.807517883 3.158801e-01  2.556406e+00 1.057596e-02
-## age                       0.203496952 1.414109e-01  1.439047e+00 1.501373e-01
-## addressUrban             -0.572402268 3.735612e-01 -1.532285e+00 1.254521e-01
-## famsizeLE3                0.088744290 2.866694e-01  3.095701e-01 7.568879e-01
-## Pstatustogether          -0.131720176 4.985578e-01 -2.642024e-01 7.916240e-01
-## Medu5th - 9th grade      -0.582924037 4.755254e-01 -1.225853e+00 2.202541e-01
-## Meduhigher education     -1.233003198 6.580894e-01 -1.873610e+00 6.098414e-02
-## Medunone                  0.260312536 1.215342e+00  2.141886e-01 8.304000e-01
-## Medusecondary education  -0.561775982 5.225262e-01 -1.075115e+00 2.823231e-01
-## Fedu5th - 9th grade       0.540369387 4.081177e-01  1.324053e+00 1.854855e-01
-## Feduhigher education      0.766342286 5.265743e-01  1.455335e+00 1.455764e-01
-## Fedunone                -15.430954687 4.453880e-08 -3.464610e+08 0.000000e+00
-## Fedusecondary education   1.126085714 4.621697e-01  2.436520e+00 1.482935e-02
-## Mjobhealth                0.384346065 6.386910e-01  6.017715e-01 5.473262e-01
-## Mjobother                -0.723363642 4.438803e-01 -1.629637e+00 1.031783e-01
-## Mjobservices             -0.263501516 4.764242e-01 -5.530818e-01 5.802074e-01
-## Mjobteacher              -0.315799816 6.438766e-01 -4.904664e-01 6.238039e-01
-## Fjobhealth                0.332782870 9.639575e-01  3.452257e-01 7.299247e-01
-## Fjobother                 1.101292875 6.598109e-01  1.669104e+00 9.509680e-02
-## Fjobservices              1.242342229 6.783547e-01  1.831405e+00 6.704009e-02
-## Fjobteacher               0.300239795 8.807235e-01  3.409013e-01 7.331779e-01
-## reasonhome               -0.567361232 3.495542e-01 -1.623099e+00 1.045682e-01
-## reasonother              -0.172700557 5.123393e-01 -3.370824e-01 7.360548e-01
-## reasonreputation          0.280416578 3.461397e-01  8.101253e-01 4.178681e-01
-## guardianmother            0.002967960 3.390879e-01  8.752775e-03 9.930164e-01
-## guardianother            -0.746176309 5.963163e-01 -1.251310e+00 2.108216e-01
-## traveltime&gt;1 hr           5.536045893 1.357397e+00  4.078428e+00 4.534117e-05
-## traveltime15-30 min      -0.334326276 3.155423e-01 -1.059529e+00 2.893589e-01
-## traveltime30 min - 1 hr  -0.061740671 5.827640e-01 -1.059445e-01 9.156264e-01
-## studytime&gt;10 hrs         -1.894812097 7.441425e-01 -2.546303e+00 1.088707e-02
-## studytime2-5 hrs         -0.292663652 3.221084e-01 -9.085874e-01 3.635680e-01
-## studytime5-10 hrs        -0.778133715 4.658862e-01 -1.670223e+00 9.487531e-02
-## failures                 -0.003889233 2.254237e-01 -1.725299e-02 9.862348e-01
-## schoolsupyes             -0.217571561 4.700506e-01 -4.628683e-01 6.434587e-01
-## famsupyes                -0.440603033 2.878767e-01 -1.530527e+00 1.258864e-01
-## paidyes                   0.658732767 3.093831e-01  2.129182e+00 3.323922e-02
-## activitiesyes            -0.136749684 2.691500e-01 -5.080798e-01 6.113974e-01
-## nurseryyes               -0.740345567 3.266141e-01 -2.266729e+00 2.340678e-02
-## higheryes                 0.776815918 6.692382e-01  1.160746e+00 2.457450e-01
-## internetyes               0.411573656 4.004737e-01  1.027717e+00 3.040829e-01
-## romanticyes              -0.156094786 2.913459e-01 -5.357714e-01 5.921166e-01
-## famrelexcellent           0.343589945 7.079579e-01  4.853254e-01 6.274456e-01
-## famrelgood                0.427985316 6.884129e-01  6.216985e-01 5.341401e-01
-## famrelmoderate            1.235067261 7.297635e-01  1.692421e+00 9.056567e-02
-## famrelvery bad            1.447794308 1.104073e+00  1.311321e+00 1.897492e-01
-## freetimelow               0.501831736 3.919880e-01  1.280222e+00 2.004670e-01
-## freetimemoderate          0.111710871 3.375563e-01  3.309400e-01 7.406898e-01
-## freetimevery high         0.035691571 5.655665e-01  6.310765e-02 9.496808e-01
-## freetimevery low          0.328979627 6.951826e-01  4.732276e-01 6.360508e-01
-## gooutlow                 -2.110736404 4.198395e-01 -5.027484e+00 4.969564e-07
-## gooutmoderate            -0.763044506 3.683979e-01 -2.071251e+00 3.833537e-02
-## gooutvery high            0.505542286 4.777376e-01  1.058201e+00 2.899639e-01
-## gooutvery low            -1.592592283 6.359912e-01 -2.504111e+00 1.227596e-02
-## Dalclow                  -1.253009010 9.224945e-01 -1.358283e+00 1.743738e-01
-## Dalcmoderate             -0.563828244 1.021964e+00 -5.517104e-01 5.811468e-01
-## Dalcvery high            15.286785097 4.743214e-05  3.222875e+05 0.000000e+00
-## Dalcvery low             -3.674574183 9.367975e-01 -3.922485e+00 8.764029e-05
-## healthgood               -0.904637160 5.041891e-01 -1.794242e+00 7.277460e-02
-## healthmoderate           -0.611815897 4.493435e-01 -1.361577e+00 1.733313e-01
-## healthvery bad           -0.769386848 5.424648e-01 -1.418317e+00 1.560984e-01
-## healthvery good           0.178430928 4.129822e-01  4.320548e-01 6.657016e-01
-## absences                  0.030547505 1.680702e-02  1.817545e+00 6.913374e-02
-## G1                       -0.068940183 9.068864e-02 -7.601854e-01 4.471438e-01
-## G2                        0.087209709 1.046881e-01  8.330430e-01 4.048205e-01
-## G3                        0.005681979 6.926843e-02  8.202840e-02 9.346241e-01
-## 1|2                      -0.382960160 3.154440e+00 -1.214035e-01 9.033714e-01
-## 2|3                       1.376065936 3.160620e+00  4.353785e-01 6.632877e-01
-## 3|4                       3.371447822 3.154538e+00  1.068761e+00 2.851773e-01
-## 4|5                       6.080349832 3.164696e+00  1.921306e+00 5.469311e-02</code></pre>
-<pre class="r"><code># 1|2, 2|3, 3|4, 4|5 are the intercepts</code></pre>
-<pre class="r"><code># eliminate variables
+ctable = cbind(ctable, &quot;p value&quot; = p)
 
-# model = polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
-#                schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary, Hess=TRUE)
-# ctable = coef(summary(model))
-# p = pnorm(abs(ctable[, &quot;t value&quot;]), lower.tail = FALSE) * 2
-# (ctable = cbind(ctable, &quot;p value&quot; = p))</code></pre>
-<pre class="r"><code># do not know if this is right
+pred_80 &lt;- predict(model_80, df_recoded_binary_80)
+# pred_80
 
-# pred_80 = predict(model_80, df_recoded_binary_20)
-# pred_80</code></pre>
-<pre class="r"><code># do not know what this does, how to modify it?
+(tab &lt;- table(pred_80, df_recoded_binary_80$Walc))</code></pre>
+<pre><code>##        
+## pred_80  1  2  3  4  5
+##       1 98 51 27  6  5
+##       2  2  0  2  2  0
+##       3 16 16 28 24  5
+##       4  3  0  7  2  6
+##       5  1  1  0  5  9</code></pre>
+<pre class="r"><code>1-sum(diag(tab))/sum(tab)</code></pre>
+<pre><code>## [1] 0.5664557</code></pre>
+<pre class="r"><code>pred_20 &lt;- predict(model_80, df_recoded_binary_20)
+# pred_80
 
-# (tab = table(pred, df_recoded_binary$Walc))
-# 1-sum(diag(tab)) / sum(tab)</code></pre>
+(tab &lt;- table(pred_20, df_recoded_binary_20$Walc))</code></pre>
+<pre><code>##        
+## pred_20  1  2  3  4  5
+##       1 23 12  9  1  0
+##       2  0  0  0  1  0
+##       3  6  5  6  7  1
+##       4  1  0  0  1  1
+##       5  1  0  1  2  1</code></pre>
+<pre class="r"><code>1-sum(diag(tab))/sum(tab)</code></pre>
+<pre><code>## [1] 0.6075949</code></pre>
 </div>
 
 
