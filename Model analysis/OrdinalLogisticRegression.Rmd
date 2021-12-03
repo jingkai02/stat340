@@ -1,8 +1,9 @@
 ---
 title: "Ordinal Logistic Regression"
+author: Jeremy and Peter Sykora
 output: html_document
 ---
-## Authors: Jeremy and Pete
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
@@ -14,101 +15,197 @@ library(tidyverse)
 library(dplyr)
 ```
 
+### Step 1: Reading in the Data
 
-### Step 1: Reading in the data
 ```{r}
-df = read_csv("student-mat-recoded-binary.txt")
-dat = read_csv("student-mat.csv")
 
-# convert our dependent variable from double to ordinal factor with 5 levels 
-# also convert all non-continuous variables to categorical variables
+# read in the original, unmodified data set
+df = read_csv("student-mat.csv")
 
+# read in the recoded data set where the variables have values that are recoded from 1 to 5 to more descriptive categories and with a new variable related to `Walc` that is `Walc_bin` with values "yes" meaning that the student consumes alcohol and "no" meaning that the student does not consume alcohol.
+df_recoded_binary = read_csv("student-mat-recoded-binary.csv")
 
-df = df %>% mutate(Walc = as.ordered(dat$Walc)) %>% 
-  mutate(
-    sex=as.factor(sex), 
-    school=as.factor(school), 
-    address=as.factor(address),
-    famsize=as.factor(famsize),
-    Pstatus = as.factor(Pstatus),
-    Medu=as.factor(Medu),
-    Fedu = as.factor(Fedu),
-    Mjob = as.factor(Mjob),
-    Fjob = as.factor(Fjob),
-    reason = as.factor(reason),
-    guardian = as.factor(guardian),
-    traveltime = as.factor(traveltime),
-    studytime = as.factor(studytime),
-    schoolsup = as.factor(schoolsup),
-    famsup = as.factor(famsup),
-    paid = as.factor(paid),
-    activities = as.factor(activities),
-    nursery = as.factor(nursery),
-    higher = as.factor(higher),
-    internet = as.factor(internet),
-    romantic = as.factor(romantic),
-    famrel = as.factor(famrel),
-    freetime = as.factor(freetime),
-    Dalc = as.factor(Dalc),
-    goout = as.factor(goout),
-    health = as.factor(health),
-    Walc_bin = as.factor(Walc_bin)
-    ) 
+# modify the recoded data set
+df_recoded_binary <- df_recoded_binary %>%
+  mutate(Walc = as.ordered(df$Walc), # convert our dependent variable from type double to type ordinal factor with 5 levels
+         sex = as.factor(sex), # convert all non-continuous variables to categorical variables
+         school = as.factor(school),
+         address = as.factor(address),
+         famsize = as.factor(famsize),
+         Pstatus = as.factor(Pstatus),
+         Medu = as.factor(Medu),
+         Fedu = as.factor(Fedu),
+         Mjob = as.factor(Mjob),
+         Fjob = as.factor(Fjob),
+         reason = as.factor(reason),
+         guardian = as.factor(guardian),
+         traveltime = as.factor(traveltime),
+         studytime = as.factor(studytime),
+         schoolsup = as.factor(schoolsup),
+         famsup = as.factor(famsup),
+         paid = as.factor(paid),
+         activities = as.factor(activities),
+         nursery = as.factor(nursery),
+         higher = as.factor(higher),
+         internet = as.factor(internet),
+         romantic = as.factor(romantic),
+         famrel = as.factor(famrel),
+         freetime = as.factor(freetime),
+         Dalc = as.factor(Dalc),
+         goout = as.factor(goout),
+         health = as.factor(health),
+         Walc_bin = as.factor(Walc_bin)
+  ) 
 
+# let us now examine the values and data types
+head(df_recoded_binary)
+str(df_recoded_binary)
 
-
-
-head(df)
 ```
+
 ```{r}
-summary(df)
+
+# let us also examine a summary of the modified recoded data set
+summary(df_recoded_binary)
+
 ```
+
 ### Step 2: Create the Ordinal Logistic Regression Model
+
+Here, we will first fit an ordinal logistic regression on all of the predictors.
+
 ```{r}
-model = polr(Walc ~ .-Walc_bin, data = df, Hess=TRUE)
+
+# we fit a model with every predictor besides `Walc_bin` because `Walc_bin` is the binary representation of `Walc`, our response variable
+model = polr(Walc ~ . - Walc_bin, data = df_recoded_binary, Hess = TRUE)
+
+# let us examine the summary statistics of the fitted model
 summary(model)
+
 ```
 
 ### Step 3: Obtaining P-Values
+
+Now, we will determine the predictors' levels of significance from the previously fitted model.
+
 ```{r}
+
 ctable = coef(summary(model))
-p = pnorm(abs(ctable[, "t value"]), lower.tail=FALSE) * 2
+p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
 (ctable = cbind(ctable, "p value" = p))
+
 ```
 
-### Step 4: Eliminate all statistically insignificant variables from the model and 
-### arrive at the final model
+### Step 4: Eliminate Statistically Insignificant Variables & Arrive At Final Model
 
-* Significance level at alpha=0.10
+* Significance level at alpha = 0.10
 
 * For categorical predictors, if any of the subcategories (e.g Fjobother) is significant, then we will keep the independent variable regardless of the significance of the other subcategories within the IV
 
 * Dalc is significant, but it would seem unfair to have weekday alcohol consumption as a predictor for weekend alcohol consumption. If we have access to a student's weekday alcohol consumption, then it would be reasonable to also have access to a student's weekend alcohol consumption, making the model redundant. Therefore, it is not included in the model as a predictor.
 
-
 #### Final Model
+
 ```{r}
+
 model = polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
-               schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df, Hess=TRUE)
+               schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary, Hess=TRUE)
 ctable = coef(summary(model))
-p = pnorm(abs(ctable[, "t value"]), lower.tail=FALSE) * 2
+p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
 (ctable = cbind(ctable, "p value" = p))
+
 ```
 
-### Step 5: Evaluate the Model by calculating the error
+### Step 5: Evaluate the Model by Calculating the Error
 
 ```{r}
-pred = predict(model, df)
+
+pred = predict(model, df_recoded_binary)
 pred
+
 ```
 
 ```{r}
 
-(tab = table(pred, df$Walc))
+(tab = table(pred, df_recoded_binary$Walc))
 1-sum(diag(tab)) / sum(tab)
+
 ```
 
 Using the entire dataset as the training set, and evaluating the model on this the entire dataset, the model only predicted 45% of the weekend alcohol consumption correctly. This is pretty bad.
 
+### Step 6: Testing For Overfitted Model
 
+Let us now consider using 80% of the dataset as the training set and then evaluating the model on the remaining 20% of the entire dataset. This will help us determine if the previous model fit is overfitted.
+
+```{r}
+
+# randomly shuffle the recoded data set
+df_recoded_binary_shuffled <- df_recoded_binary[sample(nrow(df_recoded_binary), replace = FALSE),]
+
+# extract the first 80% of the total rows from the shuffled data set
+df_recoded_binary_80 <- df_recoded_binary_shuffled %>% slice(1:(nrow(df_recoded_binary)*0.8))
+
+# extract the remaining 20% of the total rows from the shuffled data sete
+df_recoded_binary_20 <- df_recoded_binary_shuffled %>% slice((nrow(df_recoded_binary)*0.8)+1:(nrow(df_recoded_binary)*0.2))
+
+# we fit a model with every predictor besides `Walc_bin` because `Walc_bin` is the binary representation of `Walc`, our response variable
+model_80 = polr(Walc ~ . - Walc_bin, data = df_recoded_binary_80, Hess = TRUE)
+
+# let us examine the summary statistics of the fitted model
+summary(model_80)
+
+```
+
+```{r}
+
+ctable = coef(summary(model_80))
+p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+(ctable = cbind(ctable, "p value" = p))
+
+```
+
+```{r}
+
+# do not know what 1|2, 2|3, 3|4, 4|5 are
+
+```
+
+```{r}
+
+# does not work
+
+# ci <- confint(m)
+
+```
+
+```{r}
+
+# do not know how to eliminate variables
+
+# model = polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
+#                schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary, Hess=TRUE)
+# ctable = coef(summary(model))
+# p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+# (ctable = cbind(ctable, "p value" = p))
+
+```
+
+```{r}
+
+# do not know if this is right
+
+# pred_80 = predict(model_80, df_recoded_binary_20)
+# pred_80
+
+```
+
+```{r}
+
+# do not know what this does, how to modify it?
+
+# (tab = table(pred, df_recoded_binary$Walc))
+# 1-sum(diag(tab)) / sum(tab)
+
+```
 
