@@ -175,7 +175,7 @@ pre code {
 <p>Key takeaways from this document:</p>
 <ol style="list-style-type: decimal">
 <li><p>We wrote a loss function, mean_deviation(), to calculate the “accuracy” of our model that finds the mean deviation of predictions from the correct values. We also calculated this loss function on our ordinal random forest, to be compared with our ordinal logistic regression accuracy.</p></li>
-<li><p>We generated 3 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions) and also ordinal random forest. We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the</p></li>
+<li><p>We generated 4 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions) and also ordinal random forest (using “equal” and “proportional” performance functions). We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the corresponding sections for data.</p></li>
 </ol>
 <pre class="r"><code>alcohol &lt;- read.csv(&quot;../data/student-mat-recoded.csv&quot;)
 alcohol &lt;- alcohol %&gt;%
@@ -217,7 +217,7 @@ head(alcohol)</code></pre>
 <pre><code>## 
 ##  very low       low  moderate      high very high 
 ##       151        85        80        51        28</code></pre>
-<p>We see that the model is mostly concentrated around low values, we use the negative log-log link function, as recommended in <a href="https://www.bookdown.org/chua/ber642_advanced_regression/ordinal-logistic-regression.html" class="uri">https://www.bookdown.org/chua/ber642_advanced_regression/ordinal-logistic-regression.html</a></p>
+<p>We see that the model is mostly concentrated around low values, we use the negative log-log link function, as recommended in <a href="https://www.bookdown.org/chua/ber642_advanced_regression/ordinal-logistic-regression.html" class="uri">https://www.bookdown.org/chua/ber642_advanced_regression/ordinal-logistic-regression.html</a> . But since negative log-log link is not in the package, we will use logit and complementary log-log link functions instead.</p>
 <pre class="r"><code>x1 &lt;- model.matrix( Walc ~ 1 + sex + age + address + internet + romantic + health + studytime + failures + schoolsup + paid + nursery + higher + G1 + G2 + G3 + famsize + Pstatus + Medu + Fedu + Mjob + Fjob + guardian + famsup + famrel + school + reason + traveltime + activities + freetime + goout + absences, alcohol)[,-1]
 
 y1 &lt;- alcohol %&gt;%
@@ -589,7 +589,7 @@ ordforest2</code></pre>
 ## -6.981236e-05 -1.259529e-04 -2.300163e-04 -3.432804e-04 -4.127576e-04 
 ##          Fedu 
 ## -7.103938e-04</code></pre>
-<p>(spoiler alert) We will discover below that the best model uses “equal” as the performance function. Hence, we will look at the relative importance of each variable in predicting alcohol consumption in the model. We use the Permutation variable importance of the variables, shown below, and they are ordered based on the misclassification score.</p>
+<p>Below, we look at the relative importance of each variable in predicting alcohol consumption in the model. We use the Permutation variable importance of the variables, shown below, and they are ordered based on the misclassification score.</p>
 <p><em>Important</em>: We caveat these findings with the fact that variables with more factors are more likely to be seen as significant in random forest models, due to the fact that they have more categories.</p>
 <pre class="r"><code>sort(ordforest1$varimp, decreasing=TRUE)</code></pre>
 <pre><code>##           sex         goout      absences            G3            G2 
@@ -621,7 +621,38 @@ ordforest2</code></pre>
 <li>famsup</li>
 <li>paid</li>
 </ul>
-<p>Hence, a possible next step would be to plug these 12 variables into our ordinal regression model.</p>
+<pre class="r"><code>sort(ordforest2$varimp, decreasing=TRUE)</code></pre>
+<pre><code>##           sex         goout      absences            G3            G2 
+##  1.984516e-02  1.245676e-02  7.250008e-03  6.389770e-03  4.897408e-03 
+##     studytime           age            G1          paid        famsup 
+##  4.492528e-03  2.629642e-03  2.546596e-03  1.557826e-03  1.198324e-03 
+##      failures        reason       address          Medu        higher 
+##  1.186557e-03  1.118863e-03  1.049229e-03  8.968630e-04  5.798244e-04 
+##          Fjob      romantic        school     schoolsup       nursery 
+##  5.516826e-04  5.300269e-04  2.843971e-04  2.658642e-04  2.562274e-04 
+##        famrel    traveltime    activities       famsize      internet 
+##  1.632982e-04  1.461490e-04  8.531848e-05  6.369859e-06 -1.834901e-05 
+##        health       Pstatus          Mjob      freetime      guardian 
+## -6.981236e-05 -1.259529e-04 -2.300163e-04 -3.432804e-04 -4.127576e-04 
+##          Fedu 
+## -7.103938e-04</code></pre>
+<p>To interpret the model output, we see that the following 13 variables are most instrumental in predicting alcohol consumption:</p>
+<ul>
+<li>sex</li>
+<li>goout</li>
+<li>G3</li>
+<li>absences</li>
+<li>G2</li>
+<li>studytime</li>
+<li>age</li>
+<li>Fjob</li>
+<li>failures</li>
+<li>G1</li>
+<li>famsup</li>
+<li>romantic</li>
+<li>reason</li>
+</ul>
+<p>Hence, a possible next step would be to plug these 12 and 13 variables into our ordinal regression model.</p>
 <p>For our next steps, we proceed to do a train/test split on our data (using an 80:20 split) to evaluate the accuracy of each random forest model on our data. We can generalise this to our loss function</p>
 <p>We will also code a general loss function for our data, calculating the mean deviation from the correct prediction</p>
 <p>First, we will initialize some helper functions</p>
@@ -686,17 +717,21 @@ error_randomforest1 &lt;- rep(NA,n)
 error_randomforest2 &lt;- rep(NA,n)
 
 for(i in 1:n){
-  # each iteration takes around 37 seconds, so don&#39;t panic if this takes some time (around 5 mins) to run
+  # each iteration takes around 37 seconds, so don&#39;t panic if this takes some time (around 3 mins) to run
   errors &lt;- run_random_forests()
   error_randomforest1[i] &lt;- errors[1]
   error_randomforest2[i] &lt;- errors[2]
 }
 
-paste0(&quot;Mean deviation of random forest using &#39;equal&#39; performance function: &quot;,mean(error_randomforest1))</code></pre>
+error_randomforest1 </code></pre>
+<pre><code>## [1] 1.269231 1.025641 1.205128 1.128205 1.025316</code></pre>
+<pre class="r"><code>error_randomforest2</code></pre>
+<pre><code>## [1] 1.2692308 1.0128205 1.2179487 1.0897436 0.9240506</code></pre>
+<pre class="r"><code>paste0(&quot;Mean deviation of random forest using &#39;equal&#39; performance function: &quot;,mean(error_randomforest1))</code></pre>
 <pre><code>## [1] &quot;Mean deviation of random forest using &#39;equal&#39; performance function: 1.13070431678027&quot;</code></pre>
 <pre class="r"><code>paste0(&quot;Mean deviation of random forest using &#39;proportional&#39; performance function: &quot;,mean(error_randomforest2))</code></pre>
 <pre><code>## [1] &quot;Mean deviation of random forest using &#39;proportional&#39; performance function: 1.102758844531&quot;</code></pre>
-<p>As observed above, the error using the ‘equal’ performance function is the best, so we will compare that model with the model</p>
+<p>As observed above, the error using the ‘proportional’ performance function is the best, so we will compare that model with the model accuracies of ordinal logistic regression</p>
 </div>
 
 

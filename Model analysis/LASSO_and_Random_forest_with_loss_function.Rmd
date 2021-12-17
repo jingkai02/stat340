@@ -15,7 +15,7 @@ Key takeaways from this document:
 
 1) We wrote a loss function, mean_deviation(), to calculate the "accuracy" of our model that finds the mean deviation of predictions from the correct values. We also calculated this loss function on our ordinal random forest, to be compared with our ordinal logistic regression accuracy.
 
-2) We generated 3 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions) and also ordinal random forest. We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the 
+2) We generated 4 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions) and also ordinal random forest (using "equal" and "proportional" performance functions). We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the corresponding sections for data.
 
 
 
@@ -35,7 +35,7 @@ We first calculate the proportion of responses in each category to determine the
 table(alcohol$Walc)
 ```
 
-We see that the model is mostly concentrated around low values, we use the negative log-log link function, as recommended in https://www.bookdown.org/chua/ber642_advanced_regression/ordinal-logistic-regression.html 
+We see that the model is mostly concentrated around low values, we use the negative log-log link function, as recommended in https://www.bookdown.org/chua/ber642_advanced_regression/ordinal-logistic-regression.html . But since negative log-log link is not in the package, we will use logit and complementary log-log link functions instead.
 
 
 ```{r}
@@ -117,7 +117,7 @@ ordforest2
 sort(ordforest2$varimp, decreasing=TRUE)
 ```
 
-(spoiler alert) We will discover below that the best model uses "equal" as the performance function. Hence, we will look at the relative importance of each variable in predicting alcohol consumption in the model. We use the Permutation variable importance of the variables, shown below, and they are ordered based on the misclassification score.
+Below, we look at the relative importance of each variable in predicting alcohol consumption in the model. We use the Permutation variable importance of the variables, shown below, and they are ordered based on the misclassification score.
 
 *Important*: We caveat these findings with the fact that variables with more factors are more likely to be seen as significant in random forest models, due to the fact that they have more categories.
 
@@ -140,7 +140,27 @@ To interpret the model output, we see that the following 12 variables are most i
 - famsup
 - paid
 
-Hence, a possible next step would be to plug these 12 variables into our ordinal regression model.
+```{r}
+sort(ordforest2$varimp, decreasing=TRUE)
+```
+
+To interpret the model output, we see that the following 13 variables are most instrumental in predicting alcohol consumption:
+
+- sex
+- goout
+- G3
+- absences
+- G2
+- studytime
+- age
+- Fjob
+- failures
+- G1
+- famsup
+- romantic
+- reason
+
+Hence, a possible next step would be to plug these 12 and 13 variables into our ordinal regression model.
 
 
 
@@ -217,11 +237,14 @@ error_randomforest1 <- rep(NA,n)
 error_randomforest2 <- rep(NA,n)
 
 for(i in 1:n){
-  # each iteration takes around 37 seconds, so don't panic if this takes some time (around 5 mins) to run
+  # each iteration takes around 37 seconds, so don't panic if this takes some time (around 3 mins) to run
   errors <- run_random_forests()
   error_randomforest1[i] <- errors[1]
   error_randomforest2[i] <- errors[2]
 }
+
+error_randomforest1 
+error_randomforest2
 
 paste0("Mean deviation of random forest using 'equal' performance function: ",mean(error_randomforest1))
 paste0("Mean deviation of random forest using 'proportional' performance function: ",mean(error_randomforest2))
@@ -229,5 +252,5 @@ paste0("Mean deviation of random forest using 'proportional' performance functio
 
 ```
 
-As observed above, the error using the 'equal' performance function is the best, so we will compare that model with the model
+As observed above, the error using the 'proportional' performance function is the best, so we will compare that model with the model accuracies of ordinal logistic regression
 
