@@ -20,10 +20,10 @@ library(dplyr)
 ```{r}
 
 # read in the original, unmodified data set
-df = read_csv("student-mat.csv")
+df = read_csv("student-mat.txt")
 
 # read in the recoded data set where the variables have values that are recoded from 1 to 5 to more descriptive categories and with a new variable related to `Walc` that is `Walc_bin` with values "yes" meaning that the student consumes alcohol and "no" meaning that the student does not consume alcohol.
-df_recoded_binary = read_csv("student-mat-recoded-binary.csv")
+df_recoded_binary = read_csv("student-mat-recoded-binary.txt")
 
 # modify the recoded data set
 df_recoded_binary <- df_recoded_binary %>%
@@ -156,23 +156,119 @@ From the model that we fit above using all of the predictors, we have already fo
 ```{r}
 
 # we fit a model with every predictor besides `Walc_bin` and the predictors that were found to be insignificant in the previous model fitted with all of the predictors
-model_80 <- polr(Walc ~ . -Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
+model <- polr(Walc ~ . -Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
                schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary_80, Hess=TRUE)
+
 ctable = coef(summary(model))
 p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
 ctable = cbind(ctable, "p value" = p)
 
-pred_80 <- predict(model_80, df_recoded_binary_80)
+pred_80 <- predict(model, df_recoded_binary_80)
 # pred_80
+(tab_train <- table(pred_80, df_recoded_binary_80$Walc))
 
-(tab <- table(pred_80, df_recoded_binary_80$Walc))
-1-sum(diag(tab))/sum(tab)
-
-pred_20 <- predict(model_80, df_recoded_binary_20)
+pred_20 <- predict(model, df_recoded_binary_20)
 # pred_80
-
-(tab <- table(pred_20, df_recoded_binary_20$Walc))
-1-sum(diag(tab))/sum(tab)
+(tab_test <- table(pred_20, df_recoded_binary_20$Walc))
 
 ```
+## Loss Function #1: Proportion of Correct Predictions
+
+This loss function only cares about the proportion of predictions that match to the exact label. It does not consider the distance a prediction is to the correct label.
+
+
+Training Set:
+```{r}
+zeroOne = function(answer, pred){
+  tab =  table(pred, answer)
+  return(sum(diag(tab))/sum(tab))
+}
+
+pred <- predict(model, df_recoded_binary_80)
+answer = df_recoded_binary_80$Walc
+zeroOne(answer, pred)
+```
+Test Set:
+```{r}
+pred <- predict(model, df_recoded_binary_20)
+answer = df_recoded_binary_20$Walc
+zeroOne(answer, pred)
+```
+
+## Loss Function #2: Mean Absolute Deviation from Correct Label
+```{r}
+abs_deviation <- function(answer, pred){
+  ## answer and pred need to contain numerical values
+  absolute_diff <- abs(answer-pred)
+  mean_deviation <- mean(absolute_diff)
+  return(mean_deviation)
+}
+```
+
+Training Set
+```{r}
+pred = as.double(pred_80)
+answer = as.double(df_recoded_binary_80$Walc)
+
+abs_deviation(answer, pred)
+```
+Test Set:
+```{r}
+pred = as.double(pred_20)
+answer = as.double(df_recoded_binary_20$Walc)
+
+abs_deviation(answer, pred)
+```
+
+
+## Loss Function #3: Mean Squared Deviation from Correct Label
+
+```{r}
+square_deviation <- function(answer, pred){
+  ## answer and pred need to contain numerical values
+  square_diff <- (answer-pred)**2
+  mean_deviation <- mean(square_diff)
+  return(mean_deviation)
+}
+```
+
+Training Set
+```{r}
+pred = as.double(pred_80)
+answer = as.double(df_recoded_binary_80$Walc)
+
+square_deviation(answer, pred)
+```
+Test Set
+```{r}
+pred = as.double(pred_20)
+answer = as.double(df_recoded_binary_20$Walc)
+
+square_deviation(answer, pred)
+```
+### Testing Different Variable Combinations
+
+## Combination 1: Logit Link
+
+```{r}
+model <- polr(Walc ~ internet+higher+G2+G3+Pstatus+school+Fedu, data = df_recoded_binary_80, Hess=TRUE)
+
+```
+
+
+```{r}
+model <- polr(Walc ~ sex+goout+G3+absences+G2+studytime+age+Fjob+failures+G1+famsup+romantic+reason, data = df_recoded_binary_80, Hess=TRUE)
+```
+
+
+```{r}
+pred_80 <- predict(model, df_recoded_binary_80)
+# pred_80
+(tab_train <- table(pred_80, df_recoded_binary_80$Walc))
+
+pred_20 <- predict(model, df_recoded_binary_20)
+# pred_80
+(tab_test <- table(pred_20, df_recoded_binary_20$Walc))
+```
+
 
