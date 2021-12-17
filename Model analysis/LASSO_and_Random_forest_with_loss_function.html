@@ -175,7 +175,7 @@ pre code {
 <p>Key takeaways from this document:</p>
 <ol style="list-style-type: decimal">
 <li><p>We wrote a loss function, mean_deviation(), to calculate the “accuracy” of our model that finds the mean deviation of predictions from the correct values. We also calculated this loss function on our ordinal random forest, to be compared with our ordinal logistic regression accuracy.</p></li>
-<li><p>We generated 4 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions) and also ordinal random forest (using “equal” and “proportional” performance functions). We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the corresponding sections for data.</p></li>
+<li><p>We generated 2 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions). We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the corresponding sections for data.</p></li>
 </ol>
 <pre class="r"><code>alcohol &lt;- read.csv(&quot;../data/student-mat-recoded.csv&quot;)
 alcohol &lt;- alcohol %&gt;%
@@ -648,8 +648,8 @@ ordforest2</code></pre>
 <li>Fjob</li>
 <li>failures</li>
 <li>G1</li>
-<li>famsup</li>
-<li>romantic</li>
+<li>paid</li>
+<li>address</li>
 <li>reason</li>
 </ul>
 <p>Hence, a possible next step would be to plug these 12 and 13 variables into our ordinal regression model.</p>
@@ -670,17 +670,13 @@ mean_deviation &lt;- function(answer, pred){
   return(mean_deviation)
 }
 
-#### Create a function to help us run our random forests tests on a specified train/test split (default is 80/20)
+#### Create a function to help us run our random forests tests on a specified train/test split 
 
-run_random_forests &lt;- function(train_prop = 0.8){
-  # Create dummy variable for splitting data
+run_random_forests &lt;- function(test_idx){
+  # Split data based on suggested split
   
-  split_dummy &lt;- sample(c(rep(0, train_prop * nrow(alcohol)),
-                          rep(1, (1-train_prop) * nrow(alcohol))))
-  
-  
-  alcohol_train &lt;- alcohol[split_dummy == 0,]
-  alcohol_test &lt;- alcohol[split_dummy == 1,]
+  alcohol_train &lt;- alcohol[-test_idx,]
+  alcohol_test &lt;- alcohol[test_idx,]
   
   # Train data on both models
   ordforest1 &lt;- ordfor(depvar=&quot;Walc&quot;, data=alcohol_train,perffunction=&quot;equal&quot;)
@@ -706,31 +702,194 @@ run_random_forests &lt;- function(train_prop = 0.8){
   mean_dev1 &lt;- mean_deviation(ans,pred1)
   mean_dev2 &lt;- mean_deviation(ans,pred2)
   
-  errors &lt;- c(mean_dev1, mean_dev2)
-  return(errors)
+  print(&quot;Significant variables using &#39;equal&#39; performance function&quot;)
+  print(sort(ordforest1$varimp, decreasing=TRUE))
+  print(&quot;Significant variables using &#39;proportional&#39; performance function&quot;)
+  print(sort(ordforest2$varimp, decreasing=TRUE))
+  
+  useful_info &lt;- c(mean_dev1, mean_dev2)
+  return(useful_info)
 
 }</code></pre>
-<p>We now proceed to run n iterations of the train/test split, and average the errors across all n times to arrive at a final accuracy measure.</p>
-<p>n can be adjusted lower to reduce the running time - here, we have chosen n = 5</p>
-<pre class="r"><code>n = 5
-error_randomforest1 &lt;- rep(NA,n)
-error_randomforest2 &lt;- rep(NA,n)
+<p>We now proceed to run k iterations of the train/test split, and run k-fold cross validation then average the errors across all k times to arrive at a final accuracy measure.</p>
+<p>k can be adjusted lower to reduce the running time - here, we have chosen k = 5</p>
+<pre class="r"><code>k = 5
+error_randomforest1 &lt;- rep(NA,k)
+error_randomforest2 &lt;- rep(NA,k)
 
-for(i in 1:n){
-  # each iteration takes around 37 seconds, so don&#39;t panic if this takes some time (around 3 mins) to run
-  errors &lt;- run_random_forests()
+set.seed(1)
+## Generate random indexes for each k-fold. 
+nrow &lt;- nrow(alcohol)
+indexes &lt;- sample(1:nrow,nrow)
+
+for(i in 1:k){
+  # each iteration takes around 37 seconds to run
+  # We split the dataset into k folds
+  start_idx &lt;- as.integer((nrow/k)*(i-1))+1
+  end_idx &lt;- as.integer((nrow/k)*i)
+  test_idx &lt;- indexes[start_idx:end_idx]
+  errors &lt;- run_random_forests(test_idx)
   error_randomforest1[i] &lt;- errors[1]
   error_randomforest2[i] &lt;- errors[2]
-}
-
-error_randomforest1 </code></pre>
-<pre><code>## [1] 1.269231 1.025641 1.205128 1.128205 1.025316</code></pre>
+}</code></pre>
+<pre><code>## [1] &quot;Significant variables using &#39;equal&#39; performance function&quot;
+##           sex         goout     studytime      absences            G3 
+##  2.003177e-02  8.914247e-03  7.386222e-03  5.918878e-03  4.310086e-03 
+##            G2            G1           age          Medu      failures 
+##  4.266040e-03  2.857021e-03  1.585618e-03  1.215954e-03  8.934675e-04 
+##          paid        higher      romantic        famsup       address 
+##  8.424871e-04  5.797091e-04  4.030164e-04  3.147646e-04  2.035512e-04 
+##       nursery        school        reason          Fjob       Pstatus 
+##  1.752882e-04  1.701359e-04  1.628946e-04  1.435443e-04  5.092669e-05 
+##    activities          Mjob     schoolsup    traveltime        famrel 
+##  7.152221e-06 -1.049750e-04 -1.522907e-04 -1.719598e-04 -2.641167e-04 
+##        health      internet      guardian       famsize      freetime 
+## -3.143572e-04 -3.314611e-04 -4.135847e-04 -6.123445e-04 -6.279180e-04 
+##          Fedu 
+## -8.689840e-04 
+## [1] &quot;Significant variables using &#39;proportional&#39; performance function&quot;
+##           sex         goout     studytime      absences            G2 
+##  2.000229e-02  9.036309e-03  7.659071e-03  6.015372e-03  4.144104e-03 
+##            G3            G1           age          Medu          paid 
+##  3.857455e-03  2.581596e-03  1.459277e-03  1.230384e-03  1.034956e-03 
+##        famsup      failures       address        reason        higher 
+##  5.486902e-04  4.850315e-04  3.840225e-04  3.529409e-04  3.323115e-04 
+##      romantic          Fjob        school       nursery          Mjob 
+##  2.803204e-04  5.591463e-05  5.469638e-05  5.230659e-05  4.157519e-05 
+##    activities    traveltime       Pstatus     schoolsup        famrel 
+## -4.245159e-05 -1.366854e-04 -1.700790e-04 -2.175310e-04 -2.241008e-04 
+##      internet      guardian          Fedu       famsize      freetime 
+## -2.890777e-04 -3.433777e-04 -5.430917e-04 -5.813422e-04 -7.592867e-04 
+##        health 
+## -7.608351e-04 
+## [1] &quot;Significant variables using &#39;equal&#39; performance function&quot;
+##         goout           sex      absences            G2            G3 
+##  1.621493e-02  1.311059e-02  4.509833e-03  3.489344e-03  3.354307e-03 
+##            G1           age        famsup     studytime      failures 
+##  2.315469e-03  2.200608e-03  1.749101e-03  1.694356e-03  1.655265e-03 
+##        higher          Fjob          Medu          paid     schoolsup 
+##  1.367088e-03  1.109597e-03  1.021598e-03  6.702132e-04  6.400246e-04 
+##       address        reason    traveltime        school      romantic 
+##  5.714875e-04  5.272846e-04  4.131290e-04  3.516427e-04  2.240001e-04 
+##      freetime        famrel      internet    activities       nursery 
+##  1.313499e-04  3.961305e-05  5.534213e-06 -2.957186e-05 -4.722842e-05 
+##          Mjob       Pstatus       famsize      guardian        health 
+## -1.370381e-04 -1.625129e-04 -3.186459e-04 -6.688917e-04 -7.956785e-04 
+##          Fedu 
+## -8.732972e-04 
+## [1] &quot;Significant variables using &#39;proportional&#39; performance function&quot;
+##         goout           sex      absences            G3            G2 
+##  1.603537e-02  1.207448e-02  4.476027e-03  3.239650e-03  2.895572e-03 
+##           age     studytime        famsup      failures            G1 
+##  2.321990e-03  1.934753e-03  1.802955e-03  1.722892e-03  1.498982e-03 
+##          Fjob          Medu        higher          paid     schoolsup 
+##  1.255887e-03  1.019253e-03  8.178780e-04  6.501221e-04  6.150428e-04 
+##        reason        school      romantic      freetime        famrel 
+##  4.853069e-04  4.166798e-04  3.671756e-04  3.635802e-04  3.555618e-04 
+##       address    traveltime       nursery          Mjob      internet 
+##  3.123188e-04  1.683364e-04 -6.037642e-05 -9.766163e-05 -1.601374e-04 
+##       Pstatus    activities      guardian        health       famsize 
+## -2.533150e-04 -4.510956e-04 -4.601701e-04 -5.003842e-04 -5.035481e-04 
+##          Fedu 
+## -5.109515e-04 
+## [1] &quot;Significant variables using &#39;equal&#39; performance function&quot;
+##           sex         goout            G3            G2      absences 
+##  1.954851e-02  1.027641e-02  8.586684e-03  8.255928e-03  4.807553e-03 
+##     studytime            G1        famsup           age          paid 
+##  4.379559e-03  4.139091e-03  1.690732e-03  1.522677e-03  1.464664e-03 
+##        reason          Medu       nursery      failures    activities 
+##  9.608566e-04  8.421081e-04  8.046026e-04  7.655569e-04  6.507381e-04 
+##       address      romantic        health     schoolsup          Fjob 
+##  6.322857e-04  6.037935e-04  4.272204e-04  3.669788e-04  3.169206e-04 
+##        school        famrel       famsize          Fedu        higher 
+##  2.855092e-04  2.206848e-04  1.533337e-04  1.037045e-04  8.746564e-05 
+##          Mjob      freetime    traveltime       Pstatus      internet 
+## -1.171326e-05 -9.784175e-05 -2.052274e-04 -2.719452e-04 -3.000023e-04 
+##      guardian 
+## -5.453738e-04 
+## [1] &quot;Significant variables using &#39;proportional&#39; performance function&quot;
+##           sex         goout            G3            G2     studytime 
+##  2.022704e-02  1.035926e-02  8.267664e-03  7.443725e-03  4.748711e-03 
+##      absences            G1           age        famsup        reason 
+##  4.674280e-03  3.721380e-03  2.137652e-03  1.697472e-03  1.142495e-03 
+##      failures          paid          Medu       nursery    activities 
+##  1.073675e-03  9.982267e-04  9.156959e-04  6.114900e-04  6.037889e-04 
+##       address      romantic          Fjob     schoolsup        health 
+##  5.144298e-04  4.551866e-04  4.440797e-04  4.108439e-04  2.533539e-04 
+##          Mjob        famrel        school        higher          Fedu 
+##  2.122802e-04  2.077090e-04  1.967542e-04  1.188633e-04  3.711616e-05 
+##       famsize    traveltime      freetime      internet       Pstatus 
+## -5.903355e-05 -8.790856e-05 -1.944258e-04 -3.081817e-04 -3.919083e-04 
+##      guardian 
+## -6.196506e-04 
+## [1] &quot;Significant variables using &#39;equal&#39; performance function&quot;
+##           sex         goout      absences            G3            G2 
+##  1.253916e-02  9.866561e-03  9.727723e-03  6.630567e-03  4.961462e-03 
+##           age     studytime            G1          paid        higher 
+##  3.259938e-03  2.953656e-03  2.594210e-03  2.556634e-03  1.432704e-03 
+##        reason       address        famsup      failures          Medu 
+##  1.316008e-03  1.003756e-03  9.981220e-04  9.714334e-04  8.140070e-04 
+##        health      freetime          Fjob     schoolsup      romantic 
+##  7.881943e-04  7.671714e-04  6.774604e-04  6.108273e-04  5.619983e-04 
+##       famsize       nursery        famrel        school    activities 
+##  4.902176e-04  4.822456e-04  2.953516e-04  2.769812e-04  3.379450e-07 
+##       Pstatus          Mjob    traveltime      guardian      internet 
+## -3.459811e-05 -7.077850e-05 -1.825835e-04 -2.335159e-04 -2.670094e-04 
+##          Fedu 
+## -3.485916e-04 
+## [1] &quot;Significant variables using &#39;proportional&#39; performance function&quot;
+##           sex         goout      absences            G3            G2 
+##  1.198340e-02  9.883664e-03  8.832015e-03  6.833981e-03  4.655311e-03 
+##           age          paid     studytime            G1        higher 
+##  4.348845e-03  2.589265e-03  2.558240e-03  2.475719e-03  1.458762e-03 
+##       address      failures        famsup     schoolsup        reason 
+##  1.185192e-03  1.045184e-03  1.018588e-03  7.757259e-04  7.246075e-04 
+##      freetime          Medu        health          Fjob        famrel 
+##  7.144866e-04  7.105836e-04  6.257745e-04  4.678457e-04  4.662696e-04 
+##      romantic       famsize       nursery        school    traveltime 
+##  3.461594e-04  3.253168e-04  2.323942e-04  1.559020e-04  1.137016e-04 
+##       Pstatus          Mjob    activities      internet      guardian 
+##  6.522739e-05  2.095404e-05 -1.499266e-05 -7.176392e-05 -4.111137e-04 
+##          Fedu 
+## -5.837369e-04 
+## [1] &quot;Significant variables using &#39;equal&#39; performance function&quot;
+##           sex         goout      absences            G3            G2 
+##  2.321216e-02  1.600264e-02  8.856719e-03  5.312701e-03  3.916628e-03 
+##     studytime            G1           age        reason          paid 
+##  3.055606e-03  2.309588e-03  1.493760e-03  1.483916e-03  1.398085e-03 
+##        famsup        health       famsize       address      failures 
+##  1.005168e-03  8.685244e-04  7.601217e-04  6.848971e-04  4.750754e-04 
+##     schoolsup        higher          Medu          Fjob        school 
+##  2.666428e-04  2.466417e-04  2.222435e-04  2.028364e-04  1.582689e-04 
+##        famrel      romantic      internet      freetime    traveltime 
+##  1.478097e-04  6.940960e-05  3.752437e-05  3.241096e-05  2.670997e-05 
+##    activities       Pstatus       nursery          Fedu      guardian 
+## -3.011617e-05 -3.634367e-05 -7.506343e-05 -1.711556e-04 -1.923606e-04 
+##          Mjob 
+## -8.505331e-04 
+## [1] &quot;Significant variables using &#39;proportional&#39; performance function&quot;
+##           sex         goout      absences            G3     studytime 
+##  2.259599e-02  1.514948e-02  9.341866e-03  5.587675e-03  3.179271e-03 
+##            G2            G1           age       famsize          paid 
+##  3.116449e-03  1.711259e-03  1.697597e-03  1.245560e-03  1.206312e-03 
+##        reason        famsup        health       address          Fjob 
+##  1.192903e-03  7.381647e-04  6.432581e-04  6.217270e-04  3.841108e-04 
+##    traveltime        higher       Pstatus      romantic      failures 
+##  3.751008e-04  2.145438e-04  1.929808e-04  1.745407e-04  1.505763e-04 
+##    activities        famrel        school          Medu     schoolsup 
+##  1.206765e-04  1.198363e-04  4.991178e-05  3.235671e-05  2.054059e-05 
+##      internet       nursery      guardian          Fedu      freetime 
+## -1.103759e-05 -7.749363e-05 -1.776874e-04 -2.164636e-04 -3.330746e-04 
+##          Mjob 
+## -7.209609e-04</code></pre>
+<pre class="r"><code>error_randomforest1 </code></pre>
+<pre><code>## [1] 1.101266 1.189873 1.139241 1.189873 1.050633</code></pre>
 <pre class="r"><code>error_randomforest2</code></pre>
-<pre><code>## [1] 1.2692308 1.0128205 1.2179487 1.0897436 0.9240506</code></pre>
+<pre><code>## [1] 1.139241 1.253165 1.189873 1.177215 1.000000</code></pre>
 <pre class="r"><code>paste0(&quot;Mean deviation of random forest using &#39;equal&#39; performance function: &quot;,mean(error_randomforest1))</code></pre>
-<pre><code>## [1] &quot;Mean deviation of random forest using &#39;equal&#39; performance function: 1.13070431678027&quot;</code></pre>
+<pre><code>## [1] &quot;Mean deviation of random forest using &#39;equal&#39; performance function: 1.13417721518987&quot;</code></pre>
 <pre class="r"><code>paste0(&quot;Mean deviation of random forest using &#39;proportional&#39; performance function: &quot;,mean(error_randomforest2))</code></pre>
-<pre><code>## [1] &quot;Mean deviation of random forest using &#39;proportional&#39; performance function: 1.102758844531&quot;</code></pre>
+<pre><code>## [1] &quot;Mean deviation of random forest using &#39;proportional&#39; performance function: 1.15189873417722&quot;</code></pre>
 <p>As observed above, the error using the ‘proportional’ performance function is the best, so we will compare that model with the model accuracies of ordinal logistic regression</p>
 </div>
 

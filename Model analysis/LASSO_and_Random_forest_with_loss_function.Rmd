@@ -15,7 +15,7 @@ Key takeaways from this document:
 
 1) We wrote a loss function, mean_deviation(), to calculate the "accuracy" of our model that finds the mean deviation of predictions from the correct values. We also calculated this loss function on our ordinal random forest, to be compared with our ordinal logistic regression accuracy.
 
-2) We generated 4 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions) and also ordinal random forest (using "equal" and "proportional" performance functions). We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the corresponding sections for data.
+2) We generated 2 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions). We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the corresponding sections for data.
 
 
 
@@ -156,8 +156,8 @@ To interpret the model output, we see that the following 13 variables are most i
 - Fjob
 - failures
 - G1
-- famsup
-- romantic
+- paid
+- address
 - reason
 
 Hence, a possible next step would be to plug these 12 and 13 variables into our ordinal regression model.
@@ -185,17 +185,13 @@ mean_deviation <- function(answer, pred){
   return(mean_deviation)
 }
 
-#### Create a function to help us run our random forests tests on a specified train/test split (default is 80/20)
+#### Create a function to help us run our random forests tests on a specified train/test split 
 
-run_random_forests <- function(train_prop = 0.8){
-  # Create dummy variable for splitting data
+run_random_forests <- function(test_idx){
+  # Split data based on suggested split
   
-  split_dummy <- sample(c(rep(0, train_prop * nrow(alcohol)),
-                          rep(1, (1-train_prop) * nrow(alcohol))))
-  
-  
-  alcohol_train <- alcohol[split_dummy == 0,]
-  alcohol_test <- alcohol[split_dummy == 1,]
+  alcohol_train <- alcohol[-test_idx,]
+  alcohol_test <- alcohol[test_idx,]
   
   # Train data on both models
   ordforest1 <- ordfor(depvar="Walc", data=alcohol_train,perffunction="equal")
@@ -221,24 +217,38 @@ run_random_forests <- function(train_prop = 0.8){
   mean_dev1 <- mean_deviation(ans,pred1)
   mean_dev2 <- mean_deviation(ans,pred2)
   
-  errors <- c(mean_dev1, mean_dev2)
-  return(errors)
+  print("Significant variables using 'equal' performance function")
+  print(sort(ordforest1$varimp, decreasing=TRUE))
+  print("Significant variables using 'proportional' performance function")
+  print(sort(ordforest2$varimp, decreasing=TRUE))
+  
+  useful_info <- c(mean_dev1, mean_dev2)
+  return(useful_info)
 
 }
 ```
 
-We now proceed to run n iterations of the train/test split, and average the errors across all n times to arrive at a final accuracy measure.
+We now proceed to run k iterations of the train/test split, and run k-fold cross validation then average the errors across all k times to arrive at a final accuracy measure.
 
-n can be adjusted lower to reduce the running time - here, we have chosen n = 5
+k can be adjusted lower to reduce the running time - here, we have chosen k = 5
 
 ```{r}
-n = 5
-error_randomforest1 <- rep(NA,n)
-error_randomforest2 <- rep(NA,n)
+k = 5
+error_randomforest1 <- rep(NA,k)
+error_randomforest2 <- rep(NA,k)
 
-for(i in 1:n){
-  # each iteration takes around 37 seconds, so don't panic if this takes some time (around 3 mins) to run
-  errors <- run_random_forests()
+set.seed(1)
+## Generate random indexes for each k-fold. 
+nrow <- nrow(alcohol)
+indexes <- sample(1:nrow,nrow)
+
+for(i in 1:k){
+  # each iteration takes around 37 seconds to run
+  # We split the dataset into k folds
+  start_idx <- as.integer((nrow/k)*(i-1))+1
+  end_idx <- as.integer((nrow/k)*i)
+  test_idx <- indexes[start_idx:end_idx]
+  errors <- run_random_forests(test_idx)
   error_randomforest1[i] <- errors[1]
   error_randomforest2[i] <- errors[2]
 }
