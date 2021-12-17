@@ -1,0 +1,233 @@
+---
+title: "Ordinal Logistic Regression: LASSO variable selection and Random Forest"
+author: "Jing Kai Ong"
+date: "12/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ordinalNet)
+library(dplyr)
+```
+
+Key takeaways from this document:
+
+1) We wrote a loss function, mean_deviation(), to calculate the "accuracy" of our model that finds the mean deviation of predictions from the correct values. We also calculated this loss function on our ordinal random forest, to be compared with our ordinal logistic regression accuracy.
+
+2) We generated 3 lists of variables that were deemed significant. These are based on LASSO (using logit and complimentary log log link functions) and also ordinal random forest. We can then fit these variables to the ordinal logistic regression model to assess accuracy. Refer to the 
+
+
+
+```{r}
+alcohol <- read.csv("../data/student-mat-recoded.csv")
+alcohol <- alcohol %>%
+  mutate(Walc = ordered(Walc, levels=c("very low", "low", "moderate", "high", "very high"))) %>%
+  select(-Dalc)
+head(alcohol)
+```
+
+# LASSO selection for Ordinal Logistic Regression
+
+We first calculate the proportion of responses in each category to determine the best link function to use.
+
+```{r}
+table(alcohol$Walc)
+```
+
+We see that the model is mostly concentrated around low values, we use the negative log-log link function, as recommended in https://www.bookdown.org/chua/ber642_advanced_regression/ordinal-logistic-regression.html 
+
+
+```{r}
+x1 <- model.matrix( Walc ~ 1 + sex + age + address + internet + romantic + health + studytime + failures + schoolsup + paid + nursery + higher + G1 + G2 + G3 + famsize + Pstatus + Medu + Fedu + Mjob + Fjob + guardian + famsup + famrel + school + reason + traveltime + activities + freetime + goout + absences, alcohol)[,-1]
+
+y1 <- alcohol %>%
+  pull(Walc)
+
+## Fit model using logit link function
+fit1 <- ordinalNet(x1, y1,alpha=1)
+
+coef(fit1, matrix=TRUE)
+
+## Fit model using complimentary log log link function
+fit2 <- ordinalNet(x1, y1,alpha=1, link="cloglog")
+
+coef(fit2, matrix=TRUE)
+
+```
+
+From the model output, the following variables were found to be insignificant:
+
+Logit Link:
+
+- internet
+- higher
+- G2
+- G3
+- Pstatus
+- school
+- Fedu (only relevant when Fedu is none)
+
+Complimentary Log Log Link:
+
+- age
+- romantic
+- higher
+- G2
+- G3
+- Pstatus
+- freetime
+
+
+Hence, all of the other variables were found to be significant. Hence, we can include these variable groupings into our ordinal logistic regression model to assess whether they are "good".
+
+
+
+
+# Random Forest
+
+Just for fun, we also run a Random Forest model on our data to try to get a better accuracy than the ordinal logistic regression models. 
+
+We will use the ordinalForest package in R, which predicts ordinal data using random forests
+
+```{r}
+library(ordinalForest)
+```
+
+Next, we will run two random forest models based on different performance functions: "equal" and "proportional", both use Youden’s J statistic
+
+- "equal" classifies observations from each class equally accurately (by computing  Youden’s J statistic for each class)
+- "proportional" aims to classify as many observations right as possible (computes  Youden’s J statistic for each class, weights by no of observations in class to prioritize classes with more observations)
+
+In these models, we are unable to use our custom loss function taking into account how far the predictions are from the 
+```{r}
+# Use ordfor() function from ordinalForest
+set.seed(1)
+
+## Method 1: Equal performance function
+ordforest1 <- ordfor(depvar="Walc", data=alcohol,perffunction="equal")
+ordforest1
+
+sort(ordforest1$varimp, decreasing=TRUE)
+
+## Method 2: Proportional performance function
+ordforest2 <- ordfor(depvar="Walc", data=alcohol,perffunction="proportional")
+ordforest2
+
+sort(ordforest2$varimp, decreasing=TRUE)
+```
+
+(spoiler alert) We will discover below that the best model uses "equal" as the performance function. Hence, we will look at the relative importance of each variable in predicting alcohol consumption in the model. We use the Permutation variable importance of the variables, shown below, and they are ordered based on the misclassification score.
+
+*Important*: We caveat these findings with the fact that variables with more factors are more likely to be seen as significant in random forest models, due to the fact that they have more categories.
+
+```{r}
+sort(ordforest1$varimp, decreasing=TRUE)
+```
+
+To interpret the model output, we see that the following 12 variables are most instrumental in predicting alcohol consumption:
+
+- sex
+- goout
+- G3
+- absences
+- G2
+- studytime
+- age
+- Fjob
+- failures
+- G1
+- famsup
+- paid
+
+Hence, a possible next step would be to plug these 12 variables into our ordinal regression model.
+
+
+
+For our next steps, we proceed to do a train/test split on our data (using an 80:20 split) to evaluate the accuracy of each random forest model on our data. We can generalise this to our loss function
+
+We will also code a general loss function for our data, calculating the mean deviation from the correct prediction
+
+First, we will initialize some helper functions
+
+```{r}
+#### Create a function to recode the Walc values into numbers
+recode_to_number <- function(vec){
+  return(recode(vec, "very low"= 1, "low" = 2, "moderate" = 3, "high" = 4, "very high" = 5 ))
+}
+
+#### Create a "loss function" to indicate the mean deviation from the correct prediction
+
+mean_deviation <- function(answer, pred){
+  ## answer and pred need to contain numerical values
+  absolute_diff <- abs(answer-pred)
+  mean_deviation <- mean(absolute_diff)
+  return(mean_deviation)
+}
+
+#### Create a function to help us run our random forests tests on a specified train/test split (default is 80/20)
+
+run_random_forests <- function(train_prop = 0.8){
+  # Create dummy variable for splitting data
+  
+  split_dummy <- sample(c(rep(0, train_prop * nrow(alcohol)),
+                          rep(1, (1-train_prop) * nrow(alcohol))))
+  
+  
+  alcohol_train <- alcohol[split_dummy == 0,]
+  alcohol_test <- alcohol[split_dummy == 1,]
+  
+  # Train data on both models
+  ordforest1 <- ordfor(depvar="Walc", data=alcohol_train,perffunction="equal")
+  ordforest2 <- ordfor(depvar="Walc", data=alcohol_train,perffunction="proportional")
+  
+  # Predict test using both models
+  pred_ordforest1 <- predict(ordforest1, alcohol_test)
+  pred_ordforest2 <- predict(ordforest2, alcohol_test)
+  
+  # Visualize accuracy of predictions
+  table(data.frame(true_values=alcohol_test$Walc, predictions=pred_ordforest1$ypred))
+  table(data.frame(true_values=alcohol_test$Walc, predictions=pred_ordforest2$ypred))
+  
+  # Calculate error metrics of predictions
+  
+  ## First, recode predictions and data back into numbers
+  
+  ans <- recode_to_number(alcohol_test$Walc)
+  pred1 <- recode_to_number(pred_ordforest1$ypred)
+  pred2 <- recode_to_number(pred_ordforest2$ypred)
+  
+  ## Next, calculate the error metric of prediction
+  mean_dev1 <- mean_deviation(ans,pred1)
+  mean_dev2 <- mean_deviation(ans,pred2)
+  
+  errors <- c(mean_dev1, mean_dev2)
+  return(errors)
+
+}
+```
+
+We now proceed to run n iterations of the train/test split, and average the errors across all n times to arrive at a final accuracy measure.
+
+n can be adjusted lower to reduce the running time - here, we have chosen n = 5
+
+```{r}
+n = 5
+error_randomforest1 <- rep(NA,n)
+error_randomforest2 <- rep(NA,n)
+
+for(i in 1:n){
+  # each iteration takes around 37 seconds, so don't panic if this takes some time (around 5 mins) to run
+  errors <- run_random_forests()
+  error_randomforest1[i] <- errors[1]
+  error_randomforest2[i] <- errors[2]
+}
+
+paste0("Mean deviation of random forest using 'equal' performance function: ",mean(error_randomforest1))
+paste0("Mean deviation of random forest using 'proportional' performance function: ",mean(error_randomforest2))
+
+
+```
+
+As observed above, the error using the 'equal' performance function is the best, so we will compare that model with the model
+
