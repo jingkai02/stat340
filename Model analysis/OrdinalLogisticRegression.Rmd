@@ -21,10 +21,12 @@ library(gmodels)
 ```{r}
 
 # read in the original, unmodified data set
-df = read_csv("student-mat.txt")
+df <- read_csv("student-mat.txt")
+# df <- read_csv("student-mat.csv")
 
 # read in the recoded data set where the variables have values that are recoded from 1 to 5 to more descriptive categories and with a new variable related to `Walc` that is `Walc_bin` with values "yes" meaning that the student consumes alcohol and "no" meaning that the student does not consume alcohol.
-df_recoded_binary = read_csv("student-mat-recoded-binary.txt")
+df_recoded_binary <- read_csv("student-mat-recoded-binary.txt")
+# df_recoded_binary <- read_csv("student-mat-recoded-binary.csv")
 
 # modify the recoded data set
 df_recoded_binary <- df_recoded_binary %>%
@@ -357,3 +359,128 @@ summary_table <- cbind(summary_table, "p value" = round(pval,3))
 summary_table
 ```
 
+# K Fold CV
+
+### Setup
+
+```{r}
+
+# Define a function to do the model training and residual computation
+df_recoded_binary_fit_models <- function(holdout_idxs, K) {
+  
+  # Split the df_recoded_binary data into train and the hold-out
+  train_data <- df_recoded_binary[-holdout_idxs, ]
+  leftout <- df_recoded_binary[holdout_idxs, ]
+  
+  errors <- rep(NA, K) # We're training K models
+  
+  # fit model 1, then evaluate
+  m1 <- polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
+               schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = train_data, Hess=TRUE)
+  m1_pred <- predict(m1, leftout)
+  errors[1] <- mean((as.numeric(m1_pred) - as.numeric(leftout$Walc))^2)
+  
+  # fit model 2, then evaluate
+  m2 <- polr(Walc ~ .-internet-higher-G2-G3-Pstatus-school-Fedu-Dalc-Walc_bin, data = train_data, Hess=TRUE)
+  m2_pred <- predict(m2, leftout)
+  errors[2] <- mean((as.numeric(m2_pred) - as.numeric(leftout$Walc))^2)
+  
+  # fit model 3, then evaluate
+  m3 <- polr(Walc ~ .-age-romantic-higher-G2-G3-Pstatus-freetime-Dalc-Walc_bin, data = train_data, Hess=TRUE)
+  m3_pred <- predict(m3, leftout)
+  errors[3] <- mean((as.numeric(m3_pred) - as.numeric(leftout$Walc))^2)
+  
+  # fit model 4, then evaluate
+  m4 <- polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-paid-Dalc-Walc_bin, data = train_data, Hess=TRUE)
+  m4_pred <- predict(m4, leftout)
+  errors[4] <- mean((as.numeric(m4_pred) - as.numeric(leftout$Walc))^2)
+  
+  # fit model 5, then evaluate
+  m5 <-  polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-romantic-reason-Dalc-Walc_bin, data = train_data, Hess=TRUE)
+  m5_pred <- predict(m5, leftout)
+  errors[5] <- mean((as.numeric(m5_pred) - as.numeric(leftout$Walc))^2)
+  
+  return(errors)
+  
+}
+
+```
+
+## K Fold (1 Sample)
+
+```{r}
+
+K <- 5
+n <- nrow(df_recoded_binary)
+Kfolds <- split(sample(1:n, n, replace = FALSE), as.factor(1:K))
+
+n_model <- 5
+Kfold_resids <- data.frame( 'Model' = rep(1:n_model, each = K),
+                            'Fold' = rep(1:K, n_model),
+                            'Error'=rep(NA, K*n_model))
+
+for(k in 1:K) {
+ heldout_idxs <- Kfolds[[k]] # The indices of the k-th hold-out set
+
+ # Now train the K different models and store their residuals
+ idx <- (Kfold_resids$Fold == k)
+ Kfold_resids[idx, ]$Error <- df_recoded_binary_fit_models(heldout_idxs, K)
+
+}
+
+KF_agg <- aggregate(Error ~ Model, data = Kfold_resids, FUN = mean)
+
+pp <- ggplot(KF_agg, aes(x=Model, y=log(Error) ) );
+pp <- pp + geom_line( size=1)
+pp
+
+```
+
+## K Fold MC
+
+```{r}
+
+n <- nrow(df_recoded_binary)
+n_model <- 5
+
+# NMC -- number of Monte Carlo replicates
+# K ---- the number of folds
+# n ---- the number of models
+MC_Kfold_experiment <- function(NMC, K) {
+  
+  KF_agg_reps <- data.frame(matrix(NA, nrow = K, ncol = NMC))
+  
+  for (i in 1:NMC) {
+    
+    Kfolds_current <- split(sample(1:n, n, replace = FALSE), as.factor(1:K))
+    Kfold_resids <- data.frame('Model' = rep(1:n_model, each = K),
+                               'Fold' = rep(1:K, n_model),
+                              'Error' = rep(NA, K * n_model))
+    
+    for (k in 1:K) {
+      heldout_idxs <- Kfolds_current[[k]]
+      idx <- (Kfold_resids$Fold == k)
+      Kfold_resids[idx,]$Error <- df_recoded_binary_fit_models(heldout_idxs, K)
+    }
+    
+    KF_agg <- aggregate(Error ~ Model, data = Kfold_resids, FUN = mean)
+    KF_agg_reps[, i] = KF_agg[2]
+    
+  }
+  
+  # return(rowMeans(KF_agg_reps))
+  return(KF_agg_reps)
+  
+}
+
+MC_KF_experiment <- 0
+MC_KF_experiment <- data.frame(MC_KF_experiment)
+MC_KF_experiment <- data.frame(MC_Kfold_experiment(5, 5))
+
+ 
+pp <- ggplot(MC_KF_experiment, aes(x = 1:5, y = log(rowMeans(MC_KF_experiment))))
+pp <- pp + geom_line(size = 1)
+pp
+
+
+```
