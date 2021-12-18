@@ -13,6 +13,7 @@ library(Hmisc)
 library(reshape2)
 library(tidyverse)
 library(dplyr)
+library(gmodels)
 ```
 
 ### Step 1: Reading in the Data
@@ -127,8 +128,9 @@ pred
 
 ```{r}
 
-(tab = table(pred, df_recoded_binary$Walc))
+tab = table(pred, df_recoded_binary$Walc)
 1-sum(diag(tab)) / sum(tab)
+tab
 
 ```
 
@@ -156,23 +158,172 @@ From the model that we fit above using all of the predictors, we have already fo
 ```{r}
 
 # we fit a model with every predictor besides `Walc_bin` and the predictors that were found to be insignificant in the previous model fitted with all of the predictors
-model_80 <- polr(Walc ~ . -Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
+model <- polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
                schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary_80, Hess=TRUE)
+
 ctable = coef(summary(model))
 p = pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
 ctable = cbind(ctable, "p value" = p)
 
-pred_80 <- predict(model_80, df_recoded_binary_80)
+pred_80 <- predict(model, df_recoded_binary_80)
 # pred_80
 
-(tab <- table(pred_80, df_recoded_binary_80$Walc))
-sum(diag(tab))/sum(tab)
-
-pred_20 <- predict(model_80, df_recoded_binary_20)
+pred_20 <- predict(model, df_recoded_binary_20)
 # pred_80
+predicted_value = pred_80
+actual_value = df_recoded_binary_80$Walc
+CrossTable(actual_value, predicted_value, prop.r=FALSE, prop.c=FALSE,
+           prop.t=FALSE, prop.chisq=FALSE)
+```
+## Loss Function #1: Proportion of Correct Predictions
 
-(tab <- table(pred_20, df_recoded_binary_20$Walc))
-sum(diag(tab))/sum(tab)
+This loss function only cares about the proportion of predictions that match to the exact label. It does not consider the distance a prediction is to the correct label.
 
+
+Training Set:
+```{r}
+printAllLoss = function(model){
+  pred_80 <- predict(model, df_recoded_binary_80)
+  pred_20 <- predict(model, df_recoded_binary_20)
+  vals = c()
+  # Training Set for zeroOne Loss
+  answer = df_recoded_binary_80$Walc
+  tab =  table(pred_80, answer)
+  val = sum(diag(tab))/sum(tab)
+  vals = append(vals, val)
+  print(paste0("Zero One - Training: " , round(as.numeric(val), 3)))
+
+  # Test Set for zeroOne Loss
+  answer = df_recoded_binary_20$Walc
+  tab =  table(pred_20, answer)
+  val = sum(diag(tab))/sum(tab)
+  vals = append(vals, val)
+  print(paste0("Zero One - Test: " , round(as.numeric(val), 3)))
+  
+  # Changing file type to double
+  pred_80 = as.double(pred_80)
+  pred_20 = as.double(pred_20)
+  answer_80 = as.double(df_recoded_binary_80$Walc)
+  answer_20 = as.double(df_recoded_binary_20$Walc)
+  
+  # Training Set for Mean Abs Deviation
+  absolute_diff <- abs(answer_80-pred_80)
+  mean_deviation <- mean(absolute_diff)
+  vals = append(vals, mean_deviation)
+  print(paste0("Mean Abs Deviation - Training: " , round(as.numeric(mean_deviation), 3)))
+  
+  
+  # Test Set for Mean Abs Deviation
+  absolute_diff <- abs(answer_20-pred_20)
+  mean_deviation <- mean(absolute_diff)
+  vals = append(vals, mean_deviation)
+  print(paste0("Mean Abs Deviation - Test: " , round(as.numeric(mean_deviation), 3)))
+  
+  
+  # Training Set for Mean Sqr Deviation
+  sqr_diff <- (answer_80-pred_80) ** 2
+  mean_deviation <- mean(sqr_diff)
+  vals = append(vals, mean_deviation)
+  print(paste0("Mean Sqr Deviation - Training: " , round(as.numeric(mean_deviation), 3)))
+  
+  
+  # Test Set for Mean Sqr Deviation
+  sqr_diff <- (answer_20-pred_20) ** 2
+  mean_deviation <- mean(sqr_diff)
+  vals = append(vals, mean_deviation)
+  print(paste0("Mean Sqr Deviation - Test: " , round(as.numeric(mean_deviation), 3)))
+  
+  return(vals)
+}
+
+printAllLoss(model)
+```
+
+### Testing Different Variable Combinations
+
+
+## Model 1: Original Model
+```{r}
+model_original <- polr(Walc ~ .-Walc_bin-school-sex-age-address-famsize-Pstatus-Mjob-reason-failures-
+               schoolsup-activities-higher-internet-romantic-famrel-G1-G2-G3-famsup-Dalc-freetime, data = df_recoded_binary_80, Hess=TRUE)
+printAllLoss(model_original)
+```
+
+## Model 2: Logit Link
+```{r}
+model_logit_link <- polr(Walc ~ .-internet-higher-G2-G3-Pstatus-school-Fedu-Dalc-Walc_bin, data = df_recoded_binary_80, Hess=TRUE)
+printAllLoss(model_logit_link)
+```
+## Model 3: Complimentary Log Log Link
+```{r}
+model_log_log_link <- polr(Walc ~ .-age-romantic-higher-G2-G3-Pstatus-freetime-Dalc-Walc_bin, data = df_recoded_binary_80, Hess=TRUE)
+printAllLoss(model_log_log_link)
+```
+## Model 4: Random Forests 1
+```{r}
+model_RF1 <- polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-paid-Dalc-Walc_bin, data = df_recoded_binary_80, Hess=TRUE)
+printAllLoss(model_RF1)
+```
+## Model 5: Random Forests 2
+```{r}
+model_RF2 <- polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-romantic-reason-Dalc-Walc_bin, data = df_recoded_binary_80, Hess=TRUE)
+printAllLoss(model_RF2)
+```
+
+
+```{r}
+df <- data.frame(matrix(ncol = 7, nrow = 0))
+cols = c("Model Name",
+                  "Zero One - Training", 
+                  "Zero One - Test",
+                  "Mean Abs Deviation - Training",
+                  "Mean Abs Deviation - Test",
+                  "Mean Sqr Deviation - Training",
+                  "Mean Sqr Deviation - Test")
+colnames(df) <- cols
+
+
+df[1, ] = c('model_original', printAllLoss(model_original))
+df[2, ] = c('model_logit_link', printAllLoss(model_logit_link))
+df[3, ] = c('model_log_log_link', printAllLoss(model_log_log_link))
+df[4, ] = c('model_RF1', printAllLoss(model_RF1))
+df[5, ] = c('model_RF2', printAllLoss(model_RF2))
+
+df = df %>% mutate(
+  `Zero One - Training` = round(as.numeric(`Zero One - Training`),3),
+  `Zero One - Test` = round(as.numeric(`Zero One - Test`), 3),
+  `Mean Abs Deviation - Training` = round(as.numeric(`Mean Abs Deviation - Training`),3),
+  `Mean Abs Deviation - Test` = round(as.numeric(`Mean Abs Deviation - Test`),3),
+  `Mean Sqr Deviation - Training` = round(as.numeric(`Mean Sqr Deviation - Training`),3),
+  `Mean Sqr Deviation - Test` = round(as.numeric(`Mean Sqr Deviation - Test`),3)
+)
+```
+
+
+```{r}
+dat = df %>% pivot_longer(!`Model Name`, names_to='Type', values_to='Result')
+dat
+```
+```{r}
+ggplot(dat %>% filter(!Type %in% c("Mean Abs Deviation - Training",
+                  "Mean Abs Deviation - Test",
+                  "Mean Sqr Deviation - Training",
+                  "Mean Sqr Deviation - Test")))  + geom_col(aes(x=`Model Name`, y=Result, fill=Type), position="dodge")
+```
+
+```{r}
+ggplot(dat %>% filter(Type %in% c("Mean Abs Deviation - Training",
+                  "Mean Abs Deviation - Test",
+                  "Mean Sqr Deviation - Training",
+                  "Mean Sqr Deviation - Test")))  + geom_col(aes(x=`Model Name`, y=Result, fill=Type), position="dodge")
+
+```
+## Pvalues
+
+```{r}
+summary_table <- coef(summary(model_log_log_link))
+pval <- pnorm(abs(summary_table[, "t value"]),lower.tail = FALSE)* 2
+summary_table <- cbind(summary_table, "p value" = round(pval,3))
+summary_table
 ```
 
