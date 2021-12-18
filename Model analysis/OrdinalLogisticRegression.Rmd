@@ -286,7 +286,7 @@ anova(OIM,model_log_log_link)
 
 ## Model 4: Random Forests 1
 ```{r}
-model_RF1 <- polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-paid-Dalc-Walc_bin, data = df_recoded_binary_80, Hess=TRUE)
+model_RF1 <- polr(Walc ~ sex+goout+G3+absences+G2+studytime+age+Fjob+failures+G1+famsup+paid, data = df_recoded_binary_80, Hess=TRUE)
 printAllLoss(model_RF1)
 ```
 ```{r}
@@ -295,7 +295,7 @@ anova(OIM,model_RF1)
 
 ## Model 5: Random Forests 2
 ```{r}
-model_RF2 <- polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-romantic-reason-Dalc-Walc_bin, data = df_recoded_binary_80, Hess=TRUE)
+model_RF2 <- polr(Walc ~ sex+goout+G3+absences+G2+studytime+age+Fjob+failures+G1+famsup+romantic+reason, data = df_recoded_binary_80, Hess=TRUE)
 printAllLoss(model_RF2)
 ```
 ```{r}
@@ -350,14 +350,7 @@ ggplot(dat %>% filter(Type %in% c("Mean Abs Deviation - Training",
                   "Mean Sqr Deviation - Test")))  + geom_col(aes(x=`Model Name`, y=Result, fill=Type), position="dodge")
 
 ```
-## Pvalues
 
-```{r}
-summary_table <- coef(summary(model_log_log_link))
-pval <- pnorm(abs(summary_table[, "t value"]),lower.tail = FALSE)* 2
-summary_table <- cbind(summary_table, "p value" = round(pval,3))
-summary_table
-```
 
 # K Fold CV
 
@@ -391,12 +384,12 @@ df_recoded_binary_fit_models <- function(holdout_idxs, K) {
   errors[3] <- mean((as.numeric(m3_pred) - as.numeric(leftout$Walc))^2)
   
   # fit model 4, then evaluate
-  m4 <- polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-paid-Dalc-Walc_bin, data = train_data, Hess=TRUE)
+  m4 <-  polr(Walc ~ sex+goout+G3+absences+G2+studytime+age+Fjob+failures+G1+famsup+paid, data = df_recoded_binary_80, Hess=TRUE)
   m4_pred <- predict(m4, leftout)
   errors[4] <- mean((as.numeric(m4_pred) - as.numeric(leftout$Walc))^2)
   
   # fit model 5, then evaluate
-  m5 <-  polr(Walc ~ .-sex-goout-G3-absences-G2-studytime-age-Fjob-failures-G1-famsup-romantic-reason-Dalc-Walc_bin, data = train_data, Hess=TRUE)
+  m5 <-  polr(Walc ~ sex+goout+G3+absences+G2+studytime+age+Fjob+failures+G1+famsup+romantic+reason, data = df_recoded_binary_80, Hess=TRUE)
   m5_pred <- predict(m5, leftout)
   errors[5] <- mean((as.numeric(m5_pred) - as.numeric(leftout$Walc))^2)
   
