@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(ordinalNet)
 library(dplyr)
+library(gmodels)
 ```
 
 Key takeaways from this document:
@@ -176,6 +177,14 @@ recode_to_number <- function(vec){
   return(recode(vec, "very low"= 1, "low" = 2, "moderate" = 3, "high" = 4, "very high" = 5 ))
 }
 
+#### Create a "loss function" for zeroOne loss
+
+zero_one <- function(answer, pred){
+  tab =  table(pred, answer)
+  val = sum(diag(tab))/sum(tab)
+  return(val)
+}
+
 #### Create a "loss function" to indicate the mean deviation from the correct prediction
 
 mean_deviation <- function(answer, pred){
@@ -183,6 +192,15 @@ mean_deviation <- function(answer, pred){
   absolute_diff <- abs(answer-pred)
   mean_deviation <- mean(absolute_diff)
   return(mean_deviation)
+}
+
+#### Create a "loss function" for average squared deviation
+
+mean_sq_deviation <- function(answer, pred){
+  ## answer and pred need to contain numerical values
+  sq_diff <- (answer-pred)^2
+  mean_sq_deviation <- mean(sq_diff)
+  return(mean_sq_deviation)
 }
 
 #### Create a function to help us run our random forests tests on a specified train/test split 
@@ -214,15 +232,19 @@ run_random_forests <- function(test_idx){
   pred2 <- recode_to_number(pred_ordforest2$ypred)
   
   ## Next, calculate the error metric of prediction
+  zero_one1 <- zero_one(ans, pred1)
+  zero_one2 <- zero_one(ans, pred2)
   mean_dev1 <- mean_deviation(ans,pred1)
   mean_dev2 <- mean_deviation(ans,pred2)
+  mean_sq_dev1 <- mean_sq_deviation(ans, pred1) 
+  mean_sq_dev2 <- mean_sq_deviation(ans, pred2) 
   
-  print("Significant variables using 'equal' performance function")
-  print(sort(ordforest1$varimp, decreasing=TRUE))
-  print("Significant variables using 'proportional' performance function")
-  print(sort(ordforest2$varimp, decreasing=TRUE))
+  CrossTable(ans, pred1, prop.r=FALSE, prop.c=FALSE,
+           prop.t=FALSE, prop.chisq=FALSE)
+  CrossTable(ans, pred2, prop.r=FALSE, prop.c=FALSE,
+         prop.t=FALSE, prop.chisq=FALSE)
   
-  useful_info <- c(mean_dev1, mean_dev2)
+  useful_info <- c(zero_one1, zero_one2, mean_dev1, mean_dev2, mean_sq_dev1, mean_sq_dev2)
   return(useful_info)
 
 }
@@ -234,8 +256,13 @@ k can be adjusted lower to reduce the running time - here, we have chosen k = 5
 
 ```{r}
 k = 5
+
+zero_one1 <- rep(NA,k)
+zero_one2 <- rep(NA,k)
 error_randomforest1 <- rep(NA,k)
 error_randomforest2 <- rep(NA,k)
+error_sq_randomforest1 <- rep(NA,k)
+error_sq_randomforest2 <- rep(NA,k)
 
 set.seed(1)
 ## Generate random indexes for each k-fold. 
@@ -249,15 +276,29 @@ for(i in 1:k){
   end_idx <- as.integer((nrow/k)*i)
   test_idx <- indexes[start_idx:end_idx]
   errors <- run_random_forests(test_idx)
-  error_randomforest1[i] <- errors[1]
-  error_randomforest2[i] <- errors[2]
+  
+  # Update loss functions
+  zero_one1[i] <- errors[1]
+  zero_one2[i] <- errors[2]
+  error_randomforest1[i] <- errors[3]
+  error_randomforest2[i] <- errors[4]
+  error_sq_randomforest1[i] <- errors[5]
+  error_sq_randomforest2[i] <- errors[6]
 }
 
+zero_one1
+zero_one2
 error_randomforest1 
 error_randomforest2
+error_sq_randomforest1
+error_sq_randomforest2
 
+paste0("ZeroOne error of random forest using 'equal' performance function: ",mean(zero_one1))
+paste0("ZeroOne error of random forest using 'proportional' performance function: ",mean(zero_one2))
 paste0("Mean deviation of random forest using 'equal' performance function: ",mean(error_randomforest1))
 paste0("Mean deviation of random forest using 'proportional' performance function: ",mean(error_randomforest2))
+paste0("Mean squared deviation of random forest using 'equal' performance function: ",mean(error_sq_randomforest1))
+paste0("Mean squared deviation of random forest using 'proportional' performance function: ",mean(error_sq_randomforest2))
 
 
 ```
