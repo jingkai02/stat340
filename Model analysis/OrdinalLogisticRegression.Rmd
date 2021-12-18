@@ -410,6 +410,8 @@ df_recoded_binary_fit_models <- function(holdout_idxs, K) {
 
 ```{r}
 
+# K fold with 5 folds
+
 K <- 5
 n <- nrow(df_recoded_binary)
 Kfolds <- split(sample(1:n, n, replace = FALSE), as.factor(1:K))
@@ -440,6 +442,8 @@ pp
 
 ```{r}
 
+# K fold cv with 5 folds
+
 n <- nrow(df_recoded_binary)
 n_model <- 5
 
@@ -468,7 +472,6 @@ MC_Kfold_experiment <- function(NMC, K) {
     
   }
   
-  # return(rowMeans(KF_agg_reps))
   return(KF_agg_reps)
   
 }
@@ -481,6 +484,5 @@ MC_KF_experiment <- data.frame(MC_Kfold_experiment(5, 5))
 pp <- ggplot(MC_KF_experiment, aes(x = 1:5, y = log(rowMeans(MC_KF_experiment))))
 pp <- pp + geom_line(size = 1)
 pp
-
 
 ```
